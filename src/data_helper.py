@@ -3,7 +3,9 @@ import _pickle as cPickle
 import os
 import numpy as np
 import cv2
+from numpy.core.numeric import indices
 from configs import *
+from copy import deepcopy as copy
 
 # Data for computer vision
 class DataHelper:
@@ -20,7 +22,7 @@ class DataHelper:
             data = f.read()
         return data
     
-    def load_data_from_binry_file(self, path):
+    def load_data_from_binary_file(self, path):
         """
         Load data from binary file
         :param path: path to the file
@@ -28,7 +30,7 @@ class DataHelper:
         """
         dataset = self.unpickle(path)
         return dataset
-    def save_data_to_binry_file(self, dataset, path):
+    def save_data_to_binary_file(self, dataset, path):
         """
         Save dataset to binary file
         :param dataset: dataset
@@ -59,7 +61,10 @@ class DataHelper:
         return dict
     
     def transform(self, dataset, block_dim, block_size):
-        new_dataset = []
+        new_dataset = {
+            'data': [],
+            'target': []
+        }
         HEIGHT = img_configs['block-size'][0] * img_configs['block-dim'][0]
         WIDTH = img_configs['block-size'][1] * img_configs['block-dim'][1]
         IMG_SIZE = (HEIGHT, WIDTH)
@@ -72,32 +77,68 @@ class DataHelper:
             image = cv2.resize(image, IMG_SIZE, interpolation = cv2.INTER_AREA)
             blocks = self.split_image_into_blocks(image, block_size)
             dropped_blocks, lost_blocks, lost_labels = self.random_drop_blocks(blocks)
-            index = np.random.randint(0, len(lost_labels))
-            index_img_block = [np.zeros(block_size) if i != lost_labels[index] else np.ones(block_size) for i in range(len(blocks))]
-            img_block = self.recover_image_from_blocks(index_img_block, block_dim, block_size)
-            image = self.recover_image_from_blocks(dropped_blocks, block_dim, block_size)
-            data = [image, img_block, blocks[lost_labels[index]]]
-            for j in range(len(lost_blocks)):
-                if np.random.choice([True, False]):
-                    target = 1 if j == index else 0
-                    new_dataset.append([data, target])
+            index_img_blocks = []
+            for index in range(0, len(blocks)):
+                index_blocks = [np.zeros(block_size) if i != index else np.ones(block_size) 
+                                for i in range(len(blocks))]
+                index_image = self.recover_image_from_blocks(index_blocks, block_dim, block_size)
+                index_img_blocks.append(index_image)
+            
+            ''' true blocks '''
+            for index in range(1, len(blocks)):
+                if index not in lost_labels:
+                    new_dataset['data'].append([image, index_img_blocks[index]])
+                    new_dataset['target'].append(1)
+                    
+            ''' false blocks '''
+            for index in lost_labels:
+                for false_index in lost_labels:
+                    if false_index == index:
+                        continue
+                    recovered_image_blocks = copy(dropped_blocks)
+                    recovered_image_blocks[index] = blocks[false_index]
+                    recovered_image = self.recover_image_from_blocks(recovered_image_blocks, block_dim, block_size)
+                    data = [recovered_image, index_img_blocks[index]]
+                    new_dataset['data'].append(data)
+                    new_dataset['target'].append(0)
+                    
         return new_dataset
     
-    def split_dataset(self, data, train_size=0.8, test_size=0.2, saved=False, file_dir='input/'):
+    def split_dataset(self, data:dict, train_size=0.8, test_size=0.2, 
+                      saved=False, shuffle = True, file_dir='input/'):
         """
-        Make dataset from data
-        :param data: data
-        :return: dataset
+        Split dataset into train and test
+        :param data: dataset
+        :param train_size: size of train
+        :param test_size: size of test
+        :param saved: save the dataset
+        :param shuffle: shuffle the dataset
+        :param file_dir: directory to save the dataset
+        :return: train, test
         """
-        train_dataset = data[:int(len(data) * train_size)]
-        test_dataset = data[int(len(data) * train_size):]
+        
+        train_dataset_indices = []
+        test_dataset_indices = []
+        for i in range(len(data['data'])):
+            if np.random.uniform() < test_size:
+                test_dataset_indices.append(i)
+            else:
+                train_dataset_indices.append(i)
+        if shuffle:
+            np.random.shuffle(train_dataset_indices)
+            np.random.shuffle(test_dataset_indices)
+        train_dataset = {
+            'data': [data['data'][i] for i in train_dataset_indices],
+            'target': [data['target'][i] for i in train_dataset_indices]
+        }
+        test_dataset = {
+            'data': [data['data'][i] for i in test_dataset_indices],
+            'target': [data['target'][i] for i in test_dataset_indices]
+        }
         if saved:
-            if not os.path.exists(file_dir):
-                os.makedirs(file_dir)
-            with open(file_dir + 'train_dataset.pkl', 'wb') as f:
-                cPickle.dump(train_dataset, f)
-            with open(file_dir + 'test_dataset.pkl', 'wb') as f:
-                cPickle.dump(test_dataset, f)
+            self.save_data_to_binary_file(train_dataset, file_dir + 'train_dataset.bin')
+            self.save_data_to_binary_file(test_dataset, file_dir + 'test_dataset.bin')
+            
         return train_dataset, test_dataset
     
     
@@ -107,14 +148,13 @@ class DataHelper:
         :param file_dir: directory of dataset
         :return: train and test dataset
         """
-        with open(file_dir + 'train_dataset.pkl', 'rb') as f:
-            train_dataset = cPickle.load(f)
-        with open(file_dir + 'test_dataset.pkl', 'rb') as f:
-            test_dataset = cPickle.load(f)
-        # shuffle dataset
+        train_dataset = self.load_data_from_binary_file(file_dir + 'train_dataset.bin')
+        test_dataset = self.load_data_from_binary_file(file_dir + 'test_dataset.bin')
         if shuffle:
-            np.random.shuffle(train_dataset)
-            np.random.shuffle(test_dataset)
+            indices = np.arange(len(train_dataset['data']))
+            np.random.shuffle(indices)
+            train_dataset['data'] = [train_dataset['data'][i] for i in indices]
+            train_dataset['target'] = [train_dataset['target'][i] for i in indices]
         return train_dataset, test_dataset
     
     def convert_array_to_rgb_image(self, array, height, width):
@@ -170,7 +210,7 @@ class DataHelper:
         for i in range(n_rows):
             for j in range(n_cols):
                 image[i * h:(i + 1) * h, j * w:(j + 1) * w] = blocks[i * n_cols + j]
-        return image
+        return np.array(image)
         
         
     def shuffle_blocks(self, blocks):

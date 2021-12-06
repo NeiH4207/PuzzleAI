@@ -49,14 +49,11 @@ class Trainer:
         """
         batches = []
         if shuffle:
-            np.random.shuffle(dataset)
-        for i in range(0, len(dataset), batch_size):
-            data_batch, targets_batch= [], []
-            for j in range(i, min(i + batch_size, len(dataset))):
-                data, label = dataset[j]
-                data_batch.append(data)
-                targets_batch.append(label)
-            batches.append((data_batch, targets_batch))
+            indices = np.random.permutation(len(dataset['data']))
+            dataset['data'] = [dataset['data'][i] for i in indices]
+            dataset['target'] = [dataset['target'][i] for i in indices]
+        for i in range(0, len(dataset['data']), batch_size):
+            batches.append((dataset['data'][i:i + batch_size], dataset['target'][i:i + batch_size]))
         return batches
     
     def train(self):
@@ -65,17 +62,15 @@ class Trainer:
         for epoch in range(self.epochs):
             train_batches = self.split_batch(self.train_loader, self.batch_size)
             for batch_idx, (data, targets) in enumerate(train_batches):
-                input_1, input_2, input_3 = [
+                input_1, input_2 = [
                     [dt[0] for dt in data],
-                    [dt[1] for dt in data],
-                    [dt[2] for dt in data]
+                    [dt[1] for dt in data]
                 ]
-                input_1 = T.FloatTensor(np.array(input_1).astype(np.float64)).to(self.device)
-                input_2 = T.FloatTensor(np.array(input_2).astype(np.float64)).to(self.device)
-                input_3 = T.FloatTensor(np.array(input_3).astype(np.float64)).to(self.device)
+                input_1 = Variable(T.FloatTensor(np.array(input_1).astype(np.float64)).to(self.device))
+                input_2 = Variable(T.FloatTensor(np.array(input_2).astype(np.float64)).to(self.device))
                 targets = T.FloatTensor(np.array(targets).reshape(-1, 1).astype(np.float64)).to(self.device)
                 self.optimizer.zero_grad()
-                output = self.model(input_1, input_2, input_3)
+                output = self.model(input_1, input_2)
                 loss = self.loss_v(output, targets)
                 loss.backward()
                 self.model.train_losses.append(loss.item())
@@ -104,34 +99,30 @@ class Trainer:
     
     def save_model(self, epoch, batch_idx):
         T.save(self.model.state_dict(), "{}/{}_{}_{}.pt".format(self.save_dir, self.save_name, epoch, batch_idx))
-
+        print("Model saved")
+        
     def load_model(self, epoch, batch_idx):
         self.model.load_state_dict(T.load("{}/{}_{}_{}.pt".format(self.save_dir, self.save_name, epoch, batch_idx)))
-
+        print("Model loaded")
+        
     def test(self):
         self.model.eval()
         test_loss = 0
         correct = 0
         with T.no_grad():
-            for data, targets in self.test_loader:
-                input_1, input_2, input_3 = [
-                    [dt[0] for dt in data],
-                    [dt[1] for dt in data],
-                    [dt[2] for dt in data]
-                ]
+            for data, _target in zip(self.test_loader['data'], self.test_loader['target']):
+                input_1, input_2 = data[0], data[1]
                 input_1 = T.FloatTensor(np.array(input_1).astype(np.float64)).to(self.device)
                 input_2 = T.FloatTensor(np.array(input_2).astype(np.float64)).to(self.device)
-                input_3 = T.FloatTensor(np.array(input_3).astype(np.float64)).to(self.device)
-                targets = T.FloatTensor(np.array(targets).reshape(-1, 1).astype(np.float64)).to(self.device)
-                output = self.model(input_1, input_2, input_3)
-                loss = self.loss_v(output, targets)
+                target = T.FloatTensor(np.array(_target).reshape(-1, 1).astype(np.float64)).to(self.device)
+                output = self.model(input_1, input_2)
+                loss = self.loss_v(output, target)
+                target_out = np.round(output.cpu().numpy()[0][0])
                 test_loss += loss.item()
-                pred = output.data.max(1, keepdim=True)[1]
-                correct += pred.eq(targets.data.view_as(pred)).sum().item()
-        test_loss /= len(self.test_loader.dataset)
+                correct += 1 if target_out == _target else 0
+        test_loss /= len(self.test_loader['data'])
         self.test_losses.append(test_loss)
-        self.test_acc.append(100. * correct / len(self.test_loader.dataset))
+        self.test_acc.append(correct / len(self.test_loader['data']))
         print('\nTest set: Average loss: {:.4f}, Accuracy: {}/{} ({:.0f}%)\n'.format(
-            test_loss, correct, len(self.test_loader.dataset),
-            100. * correct / len(self.test_loader.dataset)))
-        self.model.train()
+            test_loss, correct, len(self.test_loader['data']),
+            100. * correct / len(self.test_loader['data'])))
