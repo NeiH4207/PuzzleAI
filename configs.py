@@ -1,6 +1,6 @@
 
 configs = {
-    'preprocess': True,
+    'preprocess': False,
     'test-size': 0.2,
     'validation-size': 0.1,
     'train-size': 0.7,
