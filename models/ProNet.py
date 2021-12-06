@@ -1,4 +1,5 @@
 
+import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -87,23 +88,24 @@ class ProNet(nn.Module):
         self.input_shape = input_shape
         self.conv1 = nn.Conv2d(1, args.num_channels, 3, stride=1, padding=1).to(self.device)
         self.conv2 = nn.Conv2d(args.num_channels, args.num_channels, 3, stride=1, padding=1).to(self.device)
-        self.conv3 = nn.Conv2d(1, args.num_channels, 3, stride=1, padding=1).to(self.device)
-        self.conv4 = nn.Conv2d(args.num_channels, args.num_channels, 3, stride=1).to(self.device)
-        self.conv5 = nn.Conv2d(1, args.num_channels, 3, stride=1, padding=1).to(self.device)
-        self.conv6 = nn.Conv2d(args.num_channels, args.num_channels, 3, stride=1).to(self.device)
+        self.conv3 = nn.Conv2d(args.num_channels, args.num_channels, 3, stride=1, padding=1).to(self.device)
+        self.conv4 = nn.Conv2d(1, args.num_channels>>2, 3, stride=1, padding=1).to(self.device)
+        self.conv5 = nn.Conv2d(args.num_channels>>2, args.num_channels>>2, 3, stride=1).to(self.device)
         
         self.bn1 = nn.BatchNorm2d(args.num_channels).to(self.device)
         self.bn2 = nn.BatchNorm2d(args.num_channels).to(self.device)
         self.bn3 = nn.BatchNorm2d(args.num_channels).to(self.device)
-        self.bn4 = nn.BatchNorm2d(args.num_channels).to(self.device)
-        self.bn5 = nn.BatchNorm2d(args.num_channels).to(self.device)
-        self.bn6 = nn.BatchNorm2d(args.num_channels).to(self.device)
+        self.bn4 = nn.BatchNorm2d(args.num_channels>>2).to(self.device)
+        self.bn5 = nn.BatchNorm2d(args.num_channels>>2).to(self.device)
+        
+        self.avg_pool = nn.AvgPool2d(2).to(self.device)  
         
         self.resnet = ResNet(ResidualBlock, [2, 2, 2]).to(self.device)  
         
         self.last_channel_size = (int(args.num_channels) * input_shape[0] * input_shape[1]) >> 6
+        self.last_channel_size_2 = int(args.num_channels>>2) * ((input_shape[0] - 2) >> 1) * ((input_shape[1] - 2) >> 1)
         # self.last_channel_size = args.num_channels * (self.board_x - 4) * (self.board_y - 4)
-        self.fc1 = nn.Linear(self.last_channel_size*2+self.last_channel_size//4, 512).to(self.device)
+        self.fc1 = nn.Linear(self.last_channel_size+self.last_channel_size_2, 512).to(self.device)
         self.fc_bn1 = nn.BatchNorm1d(512).to(self.device)
 
         self.fc2 = nn.Linear(512, 128).to(self.device)
@@ -113,31 +115,31 @@ class ProNet(nn.Module):
         
         self.train_losses = []
         
-    def forward(self, x1, x2, x3):
-        #                                                           s: batch_size x n_inputs x board_x x board_y
-        x1 = x1.view(-1, self.n_inputs, self.input_shape[0], self.input_shape[1])    
-        x2 = x2.view(-1, self.n_inputs, self.input_shape[0], self.input_shape[1])
-        x3 = x3.view(-1, self.n_inputs, self.input_shape[0], self.input_shape[1])
-        x1 = F.relu(self.bn1(self.conv1(x1)))                          # batch_size x num_channels x board_x x board_y
-        x1 = F.relu(self.bn2(self.conv2(x1)))                           # batch_size x num_channels x (board_x-4) x (board_y-4)
-        x1 = F.relu(self.resnet(x1))        
-        x1 = x1.view(-1, self.last_channel_size)                       # batch_size x last_channel_size
-        # batch_size x num_channels x board_x x board_y
-        x2 = F.relu(self.bn3(self.conv3(x2)))                          # batch_size x num_channels x (board_x-2) x (board_y-2)
-        x2 = F.relu(self.bn4(self.conv4(x2)))                # batch_size x num_channels x (board_x-4) x (board_y-4)
-        x2 = F.relu(self.resnet(x2))
-        x2 = x2.view(-1, self.last_channel_size)                       # batch_size x last_channel_size
-        # batch_size x num_channels x board_x x board_y
-        x3 = F.relu(self.bn5(self.conv5(x3)))                          # batch_size x num_channels x (board_x-2) x (board_y-2)
-        x3 = F.relu(self.bn6(self.conv6(x3)))                # batch_size x num_channels x (board_x-4) x (board_y-4)
-        x3 = F.relu(self.resnet(x3))
-        x3 = x3.view(-1, self.last_channel_size//4)  
+    def forward(self, x1, x2):
+        #                                                           
+        x1 = x1.view(-1, 1, self.input_shape[0], self.input_shape[1])    
+        x2 = x2.view(-1, 1, self.input_shape[0], self.input_shape[1])
         
-        x = torch.cat((x1, x2, x3), 1)                                # batch_size x 3*last_channel_size
+        x1 = F.relu(self.bn1(self.conv1(x1)))                         
+        x1 = F.relu(self.bn2(self.conv2(x1)))                         
+        x1 = F.relu(self.bn3(self.conv3(x1)))                         
+        x1 = F.relu(self.resnet(x1))        
+        x1 = x1.view(-1, self.last_channel_size)           
+        
+        x2 = F.relu(self.bn4(self.conv4(x2)))                       
+        x2 = F.relu(self.bn5(self.conv5(x2)))    
+        x2 = self.avg_pool(x2)  
+        x2 = x2.view(-1, self.last_channel_size_2)     
+          
+        x = torch.cat((x1, x2), 1)                               
         x = F.dropout(F.relu(self.fc_bn1(self.fc1(x))), p=args.dropout, training=self.training)
-        x = F.dropout(F.relu(self.fc_bn2(self.fc2(x))), p=args.dropout, training=self.training)
+        x = F.relu(self.fc_bn2(self.fc2(x)))
         out = self.fc3(x)                        
-        return out
+        return torch.sigmoid(out)
+    
+    def predict(self, x1, x2):
+        with torch.no_grad():
+            return np.round(self.forward(x1, x2).cpu().numpy())
           
           
     def save_checkpoint(self, folder='trainned_models', filename='model.pt'):
