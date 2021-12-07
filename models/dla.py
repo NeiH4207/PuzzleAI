@@ -8,6 +8,23 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 
+class dotdict(dict):
+    def __getattr__(self, name):
+        return self[name]
+    
+args = dotdict({
+    'lr': 0.001,
+    'dropout': 0.7,
+    'epochs': 20,
+    'batch_size': 64,
+    'cuda': torch.cuda.is_available(),
+    'num_channels': 64,
+    'optimizer': 'adas',
+    'save_dir': './trainned_models',
+    'save_name': 'model_2x2'
+})
+
+
 class BasicBlock(nn.Module):
     expansion = 1
 
@@ -83,8 +100,13 @@ class Tree(nn.Module):
 
 
 class DLA(nn.Module):
-    def __init__(self, block=BasicBlock, num_classes=10):
+    def __init__(self, input_shape=(32,32), block=BasicBlock, num_classes=1):
         super(DLA, self).__init__()
+        
+        self.input_shape = input_shape
+        self.device = 'cuda' if torch.cuda.is_available() else 'cpu'
+        self.name = 'dla'
+        
         self.base = nn.Sequential(
             nn.Conv2d(3, 16, kernel_size=3, stride=1, padding=1, bias=False),
             nn.BatchNorm2d(16),
@@ -108,8 +130,14 @@ class DLA(nn.Module):
         self.layer5 = Tree(block, 128, 256, level=2, stride=2)
         self.layer6 = Tree(block, 256, 512, level=1, stride=2)
         self.linear = nn.Linear(512, num_classes)
+        
+        self.train_losses = []
 
-    def forward(self, x):
+    def forward(self, x1, x2, x3):
+        x1 = x1.view(-1, 1, self.input_shape[0], self.input_shape[1])    
+        x2 = x2.view(-1, 1, self.input_shape[0], self.input_shape[1])
+        x3 = x3.view(-1, 1, self.input_shape[0], self.input_shape[1])
+        x = torch.cat((x1, x2, x3), 1)
         out = self.base(x)
         out = self.layer1(out)
         out = self.layer2(out)
@@ -119,15 +147,48 @@ class DLA(nn.Module):
         out = self.layer6(out)
         out = F.avg_pool2d(out, 4)
         out = out.view(out.size(0), -1)
-        out = self.linear(out)
-        return out
+        out = self.linear(out)    
+        return torch.sigmoid(out)
+    
+    def predict(self, input_1, input_2, input_3):
+        input_1 = torch.FloatTensor(input_1).float().to(self.device)
+        input_2 = torch.FloatTensor(input_2).float().to(self.device)
+        input_3 = torch.FloatTensor(input_3).float().to(self.device)
+        return self.forward(input_1, input_2, input_3).cpu().data.numpy()[0][0]
+          
+    def save_checkpoint(self, epoch, batch_idx):
+        torch.save({
+            'state_dict': self.state_dict(),
+            'train_loss': self.train_losses,
+        }, "{}/{}_{}_{}.pt".format(args.save_dir, args.save_name, epoch, batch_idx))
+        
+        
+    def load_checkpoint(self, epoch, batch_idx):
+        checkpoint = torch.load("{}/{}_{}_{}.pt".format(args.save_dir, args.save_name, epoch, batch_idx), map_location=self.device)
+        self.load_state_dict(checkpoint['state_dict'])
+        self.train_losses = checkpoint['train_loss']
+        # self.load_state_dict(checkpoint)
+        print('-- Load model succesfull!')
+    
+    def save_train_losses(self, train_losses):
+        self.train_losses = train_losses
+        
+    def save(self, epoch, batch_idx):
+        torch.save(self.state_dict(), "{}/{}_{}_{}.pt".format(args.save_dir, args.save_name, epoch, batch_idx))
+        print("Model saved")
+        
+    def load(self, epoch, batch_idx):
+        self.load_state_dict(torch.load("{}/{}_{}_{}.pt".format(args.save_dir, args.save_name, epoch, batch_idx)))
+        print("Model loaded")
 
 
 def test():
     net = DLA()
     print(net)
-    x = torch.randn(1, 3, 32, 32)
-    y = net(x)
+    x1 = torch.randn(1, 3, 32, 32)
+    x2 = torch.randn(1, 3, 32, 32)
+    x3 = torch.randn(1, 3, 32, 32)
+    y = net(x1, x2, x3)
     print(y.size())
 
 

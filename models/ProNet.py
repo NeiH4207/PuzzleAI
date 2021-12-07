@@ -11,12 +11,14 @@ class dotdict(dict):
     
 args = dotdict({
     'lr': 0.001,
-    'dropout': 0.5,
+    'dropout': 0.7,
     'epochs': 20,
     'batch_size': 64,
     'cuda': torch.cuda.is_available(),
-    'num_channels': 64,
+    'num_channels': 128,
     'optimizer': 'adas',
+    'save_dir': './trainned_models',
+    'save_name': 'model_2x2'
 })
 
 # 3x3 convolution
@@ -59,7 +61,7 @@ class ResNet(nn.Module):
         self.layer2 = self.make_layer(block, args.num_channels, layers[1], 2)
         self.layer3 = self.make_layer(block, args.num_channels, layers[2], 2)
         self.avg_pool = nn.AvgPool2d(2)
-        
+        self.max_pool = nn.MaxPool2d(2)
     def make_layer(self, block, out_channels, blocks, stride=1):
         downsample = None
         if (stride != 1) or (self.in_channels != out_channels):
@@ -77,93 +79,98 @@ class ResNet(nn.Module):
         out = self.layer1(x)
         out = self.layer2(out)
         out = self.layer3(out)
-        out = self.avg_pool(out)
+        out = self.max_pool(out)
         return out
 
 class ProNet(nn.Module):
-    def __init__(self, n_inputs, input_shape, num_classes=1):
+    def __init__(self, input_shape, num_classes=1):
         super(ProNet, self).__init__()
+        self.name = 'ProNet'
         self.device = 'cuda' if torch.cuda.is_available() else 'cpu'
-        self.n_inputs = n_inputs
         self.input_shape = input_shape
-        self.conv1 = nn.Conv2d(1, args.num_channels, 3, stride=1, padding=1).to(self.device)
-        self.conv2 = nn.Conv2d(args.num_channels, args.num_channels, 3, stride=1, padding=1).to(self.device)
-        self.conv3 = nn.Conv2d(args.num_channels, args.num_channels, 3, stride=1, padding=1).to(self.device)
-        self.conv4 = nn.Conv2d(1, args.num_channels>>2, 3, stride=1, padding=1).to(self.device)
-        self.conv5 = nn.Conv2d(args.num_channels>>2, args.num_channels>>2, 3, stride=1).to(self.device)
+        self.conv1 = nn.Conv2d(3, args.num_channels>>4, 3, stride=1, padding=1).to(self.device)
+        self.conv2 = nn.Conv2d(args.num_channels>>4, args.num_channels, 3, stride=1, padding=1).to(self.device)
+        self.conv3 = nn.Conv2d(args.num_channels>>2, args.num_channels, 3, stride=1, padding=1).to(self.device)
         
-        self.bn1 = nn.BatchNorm2d(args.num_channels).to(self.device)
+        self.conv4 = nn.Conv2d(2, args.num_channels>>4, 3, stride=1, padding=1).to(self.device)
+        self.conv5 = nn.Conv2d(args.num_channels>>4, args.num_channels>>4, 3, stride=1).to(self.device)
+        
+        self.bn1 = nn.BatchNorm2d(args.num_channels>>4).to(self.device)
         self.bn2 = nn.BatchNorm2d(args.num_channels).to(self.device)
         self.bn3 = nn.BatchNorm2d(args.num_channels).to(self.device)
-        self.bn4 = nn.BatchNorm2d(args.num_channels>>2).to(self.device)
-        self.bn5 = nn.BatchNorm2d(args.num_channels>>2).to(self.device)
+        self.bn4 = nn.BatchNorm2d(args.num_channels>>4).to(self.device)
+        self.bn5 = nn.BatchNorm2d(args.num_channels>>4).to(self.device)
         
         self.avg_pool = nn.AvgPool2d(2).to(self.device)  
-        
+        self.max_pool = nn.MaxPool2d(2).to(self.device)
         self.resnet = ResNet(ResidualBlock, [2, 2, 2]).to(self.device)  
         
         self.last_channel_size = (int(args.num_channels) * input_shape[0] * input_shape[1]) >> 6
-        self.last_channel_size_2 = int(args.num_channels>>2) * ((input_shape[0] - 2) >> 1) * ((input_shape[1] - 2) >> 1)
-        # self.last_channel_size = args.num_channels * (self.board_x - 4) * (self.board_y - 4)
-        self.fc1 = nn.Linear(self.last_channel_size+self.last_channel_size_2, 512).to(self.device)
+        self.last_channel_size_2 = int(args.num_channels>>4) * ((input_shape[0] - 2)) * ((input_shape[1] - 2)) 
+        
+        self.fc1 = nn.Linear(self.last_channel_size + self.last_channel_size_2, 512).to(self.device)
         self.fc_bn1 = nn.BatchNorm1d(512).to(self.device)
 
-        self.fc2 = nn.Linear(512, 128).to(self.device)
-        self.fc_bn2 = nn.BatchNorm1d(128).to(self.device)
+        self.fc2 = nn.Linear(512, 256).to(self.device)
+        self.fc_bn2 = nn.BatchNorm1d(256).to(self.device)
 
-        self.fc3 = nn.Linear(128, num_classes).to(self.device)
+        self.fc3 = nn.Linear(256, 128).to(self.device)
+        self.fc_bn3 = nn.BatchNorm1d(128).to(self.device)
+        
+        self.fc4 = nn.Linear(128, num_classes).to(self.device)
         
         self.train_losses = []
         
-    def forward(self, x1, x2):
-        #                                                           
-        x1 = x1.view(-1, 1, self.input_shape[0], self.input_shape[1])    
+    def forward(self, x1, x2, x3):
+        # forward color features                                     
+        x1 = x1.view(-1, 3, self.input_shape[0], self.input_shape[1])  
         x2 = x2.view(-1, 1, self.input_shape[0], self.input_shape[1])
+        x3 = x3.view(-1, 1, self.input_shape[0], self.input_shape[1])
+        xt = torch.cat((x2, x3), 1)
         
-        x1 = F.relu(self.bn1(self.conv1(x1)))                         
-        x1 = F.relu(self.bn2(self.conv2(x1)))                         
-        x1 = F.relu(self.bn3(self.conv3(x1)))                         
+        x1 = F.relu(self.bn1(self.conv1(x1)))   
+        x1 = F.relu(self.bn2(self.conv2(x1)))
+                               
         x1 = F.relu(self.resnet(x1))        
         x1 = x1.view(-1, self.last_channel_size)           
         
-        x2 = F.relu(self.bn4(self.conv4(x2)))                       
-        x2 = F.relu(self.bn5(self.conv5(x2)))    
-        x2 = self.avg_pool(x2)  
-        x2 = x2.view(-1, self.last_channel_size_2)     
-          
-        x = torch.cat((x1, x2), 1)                               
+        xt = F.relu(self.bn4(self.conv4(xt)))                       
+        xt = F.relu(self.bn5(self.conv5(xt)))    
+        xt = xt.view(-1, self.last_channel_size_2)   
+        x = torch.cat((x1, xt), 1)                               
         x = F.dropout(F.relu(self.fc_bn1(self.fc1(x))), p=args.dropout, training=self.training)
-        x = F.relu(self.fc_bn2(self.fc2(x)))
-        out = self.fc3(x)                        
+        x = F.dropout(F.relu(self.fc_bn2(self.fc2(x))), p=args.dropout, training=self.training)
+        x = F.relu(self.fc_bn3(self.fc3(x)))
+        out = self.fc4(x)                
         return torch.sigmoid(out)
     
-    def predict(self, x1, x2):
-        with torch.no_grad():
-            return np.round(self.forward(x1, x2).cpu().numpy())
+    def predict(self, input_1, input_2, input_3):
+        input_1 = torch.FloatTensor(input_1).float().to(self.device)
+        input_2 = torch.FloatTensor(input_2).float().to(self.device)
+        input_3 = torch.FloatTensor(input_3).float().to(self.device)
+        return self.forward(input_1, input_2, input_3).cpu().data.numpy()[0][0]
           
-          
-    def save_checkpoint(self, folder='trainned_models', filename='model.pt'):
-        filepath = os.path.join(folder, filename)
-        if not os.path.exists(folder):
-            print("Checkpoint Directory does not exist! Making directory {}".format(folder))
-            os.mkdir(folder)
-        else:
-            print("Checkpoint Directory exists! ")
+    def save_checkpoint(self, epoch, batch_idx):
         torch.save({
             'state_dict': self.state_dict(),
-            'optimizer_state_dict': self.optimizer.state_dict(),
             'train_loss': self.train_losses,
-        }, filepath)
+        }, "{}/{}_{}_{}.pt".format(args.save_dir, args.save_name, epoch, batch_idx))
         
         
-    def load_checkpoint(self, folder='trainned_models', filename='model.pt'):
-        # https://github.com/pytorch/examples/blob/master/imagenet/main.py#L98
-        filepath = os.path.join(folder, filename) 
-        if not os.path.exists(filepath):
-            raise ("No model in path {}".format(filepath))
-        checkpoint = torch.load(filepath, map_location=self.device)
+    def load_checkpoint(self, epoch, batch_idx):
+        checkpoint = torch.load("{}/{}_{}_{}.pt".format(args.save_dir, args.save_name, epoch, batch_idx), map_location=self.device)
         self.load_state_dict(checkpoint['state_dict'])
-        self.optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
         self.train_losses = checkpoint['train_loss']
         # self.load_state_dict(checkpoint)
         print('-- Load model succesfull!')
+    
+    def save_train_losses(self, train_losses):
+        self.train_losses = train_losses
+        
+    def save(self, epoch, batch_idx):
+        torch.save(self.state_dict(), "{}/{}_{}_{}.pt".format(args.save_dir, args.save_name, epoch, batch_idx))
+        print("Model saved")
+        
+    def load(self, epoch, batch_idx):
+        self.load_state_dict(torch.load("{}/{}_{}_{}.pt".format(args.save_dir, args.save_name, epoch, batch_idx)))
+        print("Model loaded")

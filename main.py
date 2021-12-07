@@ -1,5 +1,6 @@
 import _pickle as cPickle
 from numpy.core.shape_base import block
+from models.dla import DLA
 from src.data_helper import DataHelper
 from configs import configs, img_configs
 import cv2
@@ -8,37 +9,42 @@ from src.trainer import Trainer
 from models.vgg import VGG
 from models.ProNet import ProNet
 import torch.nn as nn
+import cv
 
 def main():
     DataProcessor = DataHelper()
+    file_dir = "/sharedfiles/cifar-10-batches-py/"
+    # file_dir = "input/data/stl10_binary/"
+    file_name = "data_batch_3"
     if configs['preprocess']:
-        file_dir = "/sharedfiles/cifar-10-batches-py/data_batch_1"
-        dataset = DataProcessor.load_data_from_binry_file(file_dir)[b'data']
+        dataset = DataProcessor.load_data_from_binary_file(file_dir, file_name)[b'data']
         dataset = DataProcessor.transform(dataset, 
                                         img_configs['block-dim'],
                                         img_configs['block-size'])
         
-        DataProcessor.save_data_to_binary_file(dataset, "input/dataset.bin")     
-        trainset, testset = DataProcessor.split_dataset(dataset, 0.9, saved=True)
+        DataProcessor.save_data_to_binary_file(dataset, "input/dataset2x2.bin")     
+        trainset, testset = DataProcessor.split_dataset(dataset, 0.95, saved=True)
     else:
+        # dataset = DataProcessor.load_data_from_binary_file("input/", "test_dataset.bin")
+        # trainset, testset = DataProcessor.split_dataset(dataset, 0.9, saved=True
         trainset, testset = DataProcessor.load_train_test_dataset(file_dir="input/")
         
     print("Train set size: ", len(trainset['data']))
     print("Test set size: ", len(testset['data']))
-    # img_sample, label = trainset['data'][0][0], trainset['target'][0]
-    # print(img_sample)
-    # print(trainset['data'][0][1])
-    # print(label)
-    # cv2.imwrite("output/img_sample.png", img_sample)
     # testset = {
     #     'data':testset['data'][:1000],
     #     'target':testset['target'][:1000]
     # }
-    trainer = Trainer(model=ProNet(1, img_configs['image-size']), loss=nn.MSELoss, optimizer='adam',
+    ''' print sample '''
+    print("Sample: ", trainset['data'][0][0].shape)
+    trainer = Trainer(model=ProNet(img_configs['image-size']), loss=nn.MSELoss, optimizer='adam',
                       train_loader=trainset, test_loader=testset, batch_size=64, epochs=10)
-    trainer.load_model(1, 0)
-    # trainer.train()
-    trainer.test()
+    trainer.model.load(2, 100)
+    trainer.train()
+    # trainer.test()
+    sample_img = trainset['data'][0][0]
+    cv2.imwrite("output/sample.png", sample_img)
+    
     
 if __name__ == "__main__":
     main()
