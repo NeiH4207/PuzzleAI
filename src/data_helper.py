@@ -6,6 +6,7 @@ import cv2
 from numpy.core.numeric import indices
 from configs import *
 from copy import deepcopy as copy
+import h5py
 
 # Data for computer vision
 class DataHelper:
@@ -22,14 +23,22 @@ class DataHelper:
             data = f.read()
         return data
     
-    def load_data_from_binary_file(self, path):
+    def load_data_from_binary_file(self, path, file_name):
         """
         Load data from binary file
         :param path: path to the file
         :return: data
         """
-        dataset = self.unpickle(path)
+        file_dir = path + file_name
+        dataset = self.unpickle(file_dir)
         return dataset
+    
+    def load_data(self, path, file_name):
+
+        file_dir = path + file_name
+        dataset = h5py.File(file_dir, 'r')
+        return dataset
+    
     def save_data_to_binary_file(self, dataset, path):
         """
         Save dataset to binary file
@@ -69,38 +78,61 @@ class DataHelper:
         WIDTH = img_configs['block-size'][1] * img_configs['block-dim'][1]
         IMG_SIZE = (HEIGHT, WIDTH)
         
+        index_img_blocks = []
+        block_length = block_dim[0] * block_dim[1]
+        for index in range(0, block_length):
+            index_blocks = [np.zeros(block_size) if i != index else np.ones(block_size) 
+                            for i in range(block_length)]
+            index_image = self.merge_blocks(index_blocks, block_dim)
+            index_img_blocks.append(index_image)
         
         for i in range(len(dataset)):
             image = dataset[i]
             image = self.convert_array_to_rgb_image(image, 32, 32)
-            image = self.convert_rgb_to_bw(image)
             image = cv2.resize(image, IMG_SIZE, interpolation = cv2.INTER_AREA)
-            blocks = self.split_image_into_blocks(image, block_size)
+            blocks = self.split_image_to_blocks(image, block_dim)
             dropped_blocks, lost_blocks, lost_labels = self.random_drop_blocks(blocks)
-            index_img_blocks = []
-            for index in range(0, len(blocks)):
-                index_blocks = [np.zeros(block_size) if i != index else np.ones(block_size) 
-                                for i in range(len(blocks))]
-                index_image = self.recover_image_from_blocks(index_blocks, block_dim, block_size)
-                index_img_blocks.append(index_image)
+            block_shape = blocks[0].shape
+            dropped_index_img_blocks = [np.ones(block_size) if i in lost_labels else np.zeros(block_size)
+                                        for i in range(block_length)]
+            # 
             
-            ''' true blocks '''
-            for index in range(1, len(blocks)):
-                if index not in lost_labels:
-                    new_dataset['data'].append([image, index_img_blocks[index]])
-                    new_dataset['target'].append(1)
-                    
+            for index in range(1, block_length):
+                if index in lost_labels:
+                    continue
+                recovered_image_blocks = copy(dropped_blocks)
+                recovered_image = self.merge_blocks(recovered_image_blocks, block_dim, mode=1)
+                cp_dropped_index_img_blocks = copy(dropped_index_img_blocks)
+                cp_dropped_index_img_blocks[index] = np.ones(block_size)
+                dropped_index_image = self.merge_blocks(cp_dropped_index_img_blocks, block_dim) 
+                data = [recovered_image, index_img_blocks[index], dropped_index_image]
+                new_dataset['data'].append(data)
+                new_dataset['target'].append(1)
+                
+                angle = np.random.randint(1, 4)
+                rotate_block = np.rot90(recovered_image_blocks[index], angle)
+                recovered_image_blocks[index] = rotate_block
+                recovered_image = self.merge_blocks(recovered_image_blocks, block_dim, mode=1)
+                data = [recovered_image, index_img_blocks[index], dropped_index_image]
+                new_dataset['data'].append(data)
+                new_dataset['target'].append(0)
+                
+                
+            dropped_index_image = self.merge_blocks(dropped_index_img_blocks, block_dim) 
             ''' false blocks '''
             for index in lost_labels:
                 for false_index in lost_labels:
-                    if false_index == index:
+                    if index == false_index:
                         continue
-                    recovered_image_blocks = copy(dropped_blocks)
-                    recovered_image_blocks[index] = blocks[false_index]
-                    recovered_image = self.recover_image_from_blocks(recovered_image_blocks, block_dim, block_size)
-                    data = [recovered_image, index_img_blocks[index]]
-                    new_dataset['data'].append(data)
-                    new_dataset['target'].append(0)
+                    for angle in range(0, 4):
+                        if np.random.uniform() > 0.5:
+                            continue
+                        recovered_image_blocks = copy(dropped_blocks)
+                        recovered_image_blocks[index] = np.rot90(blocks[false_index])
+                        recovered_image = self.merge_blocks(recovered_image_blocks, block_dim, mode=1)
+                        data = [recovered_image, index_img_blocks[index], dropped_index_image]
+                        new_dataset['data'].append(data)
+                        new_dataset['target'].append(0)
                     
         return new_dataset
     
@@ -120,10 +152,10 @@ class DataHelper:
         train_dataset_indices = []
         test_dataset_indices = []
         for i in range(len(data['data'])):
-            if np.random.uniform() < test_size:
-                test_dataset_indices.append(i)
-            else:
+            if np.random.uniform() < train_size:
                 train_dataset_indices.append(i)
+            else:
+                test_dataset_indices.append(i)
         if shuffle:
             np.random.shuffle(train_dataset_indices)
             np.random.shuffle(test_dataset_indices)
@@ -148,8 +180,8 @@ class DataHelper:
         :param file_dir: directory of dataset
         :return: train and test dataset
         """
-        train_dataset = self.load_data_from_binary_file(file_dir + 'train_dataset.bin')
-        test_dataset = self.load_data_from_binary_file(file_dir + 'test_dataset.bin')
+        train_dataset = self.load_data_from_binary_file(file_dir, 'train_dataset.bin')
+        test_dataset = self.load_data_from_binary_file(file_dir, 'test_dataset.bin')
         if shuffle:
             indices = np.arange(len(train_dataset['data']))
             np.random.shuffle(indices)
@@ -171,6 +203,27 @@ class DataHelper:
         rgb_image[:, :, 2] = np.array(array[height * width * 2:height * width * 3]).reshape(height, width)
         return rgb_image
     
+    def convert_image_to_three_dim(self, image):
+        """
+        Convert image to three dim
+        :param image: image
+        :return: three dim image
+        """
+        red_image = image[:, :, 0]
+        green_image = image[:, :, 1]
+        blue_image = image[:, :, 2]
+        three_dim_image = np.stack((red_image, green_image, blue_image), axis=0)
+        return three_dim_image
+    
+    def convert_three_dim_to_image(self, three_dim_image):
+        """
+        Convert three dim image to image
+        :param three_dim_image: three dim image
+        :return: image
+        """
+        image = three_dim_image[:, :, 0]
+        return image
+    
     def convert_rgb_to_bw(self, rgb_image):
         """
         Convert rgb image to black white image
@@ -180,73 +233,81 @@ class DataHelper:
         gray_image = cv2.cvtColor(rgb_image, cv2.COLOR_BGR2GRAY)
         return gray_image
     
-    def split_image_into_blocks(self, image, block_size=(32, 32)):
+    def split_image_to_blocks(self, image, block_dim=(2, 2)):
         """
         Divide image to blocks
         :param image: image
-        :param block_size: size of block
+        :param block_dim: dimension of block
         :return: blocks
         """
-        height, width = image.shape
+        block_size = image.shape[0] // block_dim[0], image.shape[1] // block_dim[1]
         blocks = []
-        for i in range(0, height, block_size[0]):
-            for j in range(0, width, block_size[1]):
-                block = image[i:i + block_size[0], j:j + block_size[1]]
+        for i in range(block_dim[0]):
+            for j in range(block_dim[1]):
+                block = image[i * block_size[0]:(i + 1) * block_size[0], j * block_size[1]:(j + 1) * block_size[1]]
                 blocks.append(block)
         return blocks
     
-    def recover_image_from_blocks(self, blocks, block_dim=(2, 2), block_size=(128, 128)):
+    def merge_blocks(self, blocks, block_dim=(2, 2), mode=0):
         """
         Recover image from blocks
         :param blocks: blocks
         :param n_rows: number of rows
         :param n_cols: number of columns
         :param block_size: size of block
+        :mode: 0: black white, 1: rgb
         :return: image
         """
         n_rows, n_cols = block_dim
-        h, w = block_size  
-        image = np.zeros((h * n_rows, w * n_cols), dtype=np.uint8)
+        image_size = blocks[0].shape[0] * n_rows, blocks[0].shape[1] * n_cols
+        h, w = image_size
+        block_size = blocks[0].shape[0], blocks[0].shape[1]
+        image_shape = (h, w) if mode == 0 else (h, w, 3)
+        image = np.zeros(image_shape, dtype=np.uint8)
         for i in range(n_rows):
             for j in range(n_cols):
-                image[i * h:(i + 1) * h, j * w:(j + 1) * w] = blocks[i * n_cols + j]
-        return np.array(image)
+                block = blocks[i * n_cols + j]
+                image[i * block_size[0]:(i + 1) * block_size[0], j * block_size[1]:(j + 1) * block_size[1]] = block
+        return image
         
         
-    def shuffle_blocks(self, blocks):
+    def shuffle_blocks(self, blocks, rotate=False):
         """
         Shuffle blocks
         :param blocks: blocks
         :return: shuffled blocks and labels each block
         """
         n_blocks = len(blocks)
-        shuffled_blocks = []
-        shuffled_labels = []
-        indices = set(range(n_blocks))
+        shuffled_blocks = [blocks[0]]
+        shuffled_labels = [0]
+        indices = set(range(1, n_blocks))
         while len(indices) > 0:
             index = np.random.choice(list(indices))
             indices.remove(index)
-            shuffled_blocks.append(blocks[index])
+            block = blocks[index]
+            if rotate:
+                block = np.rot90(block, k=np.random.randint(4))
+            shuffled_blocks.append(block)
             shuffled_labels.append(index)
-        return shuffled_blocks, shuffled_labels
+        return np.array(shuffled_blocks), np.array(shuffled_labels)
     
-    def random_drop_blocks(self, blocks):
+    def random_drop_blocks(self, blocks, prob=None):
         """
         Random drop blocks
         :param blocks: blocks
         :param prob: probability of drop
         :return: dropped blocks
         """
-        prob = max(np.random.uniform(), 0.1)
+        if prob is None:
+            prob = max(np.random.uniform(), 0.1)
         block_size = blocks[0].shape
         n_blocks = len(blocks)
         dropped_blocks = []
         lost_blocks = []
         lost_list = []
-        while len(lost_list) == 0:
-            for i in range(1, n_blocks):
-                if np.random.uniform() < prob:
-                    lost_list.append(i)
+        for i in range(1, n_blocks):
+            if np.random.uniform() < prob:
+                lost_list.append(i)
                 
         for i in range(0, n_blocks):
             if i in lost_list:
@@ -255,3 +316,5 @@ class DataHelper:
             else:
                 dropped_blocks.append(blocks[i])
         return dropped_blocks, lost_blocks, lost_list
+    
+DataProcessor = DataHelper()
