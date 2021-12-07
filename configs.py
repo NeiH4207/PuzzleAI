@@ -1,6 +1,6 @@
 
 configs = {
-    'preprocess': False,
+    'preprocess': True,
     'test-size': 0.2,
     'validation-size': 0.1,
     'train-size': 0.7,
@@ -18,7 +18,6 @@ configs = {
     'dropout': 0.5,
     'regularizer': 'l2',
     'regularizer-rate': 0.01,
-            
 }
 
 img_configs = {
