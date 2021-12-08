@@ -36,7 +36,7 @@ class State:
         """
         return State(self)
     
-    def save_image(self, filename):
+    def save_image(self, filename='sample.png'):
         new_img = DataProcessor.merge_blocks(self.dropped_blocks,
                                                           self.block_dim, self.mode)
         cv2.imwrite('output/' + filename, new_img)
@@ -59,12 +59,46 @@ class Environment():
         """
         block_id, index, angle = action
         next_s = state.copy()
-        next_s.dropped_blocks[index] = np.rot90(state.lost_blocks[block_id], k = angle)
+        next_s.dropped_blocks[index] = np.rot90(next_s.lost_blocks[block_id], k = angle)
         next_s.lost_list.remove(index)
         next_s.lost_blocks[block_id] = None
         next_s.actions.append(action)
-        next_s.dropped_index_img_blocks[index] = np.zeros(state.block_size)
+        next_s.dropped_index_img_blocks[index] = np.zeros(next_s.block_size)
         next_s.orders[index] = block_id + 1
         next_s.angles[block_id + 1] = angle
         next_s.depth += 1
         return next_s
+    
+    def get_next_block_ids(self, state, current_block_id):
+        """
+        Returns a list of block ids.
+        """
+        dx = [0, 1, 0, -1]
+        dy = [1, 0, -1, 0]
+        next_block_ids = []
+        for i in range(4):
+            new_block_id = current_block_id + dx[i] * state.block_dim[1] + dy[i]
+            if new_block_id not in state.lost_list:
+                continue
+            next_block_ids.append(new_block_id)
+    
+    def get_valid_block_ids(self, state):
+        """
+        Returns a list of actions.
+        """
+        dx = [0, 1, 0, -1]
+        dy = [1, 0, -1, 0]
+        chosen_block_ids = set()
+        for block_id in state.lost_list:
+            x, y = block_id // state.block_dim[1], block_id % state.block_dim[1]
+            for i in range(4):
+                new_x = x + dx[i]
+                new_y = y + dy[i]
+                new_block_id = new_x * state.block_dim[1] + new_y
+                if new_x < 0 or new_x >= state.block_dim[0] or new_y < 0 or new_y >= state.block_dim[1]:
+                    continue
+                if new_block_id not in state.lost_list:
+                    chosen_block_ids.add(block_id)
+                    break
+                
+        return chosen_block_ids

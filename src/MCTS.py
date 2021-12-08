@@ -45,7 +45,7 @@ class MCTS():
             probs: a policy vector where the probability of the ith action is
                    proportional to Nsa[(s,a)]**(1./temp)
         """
-        s = self.string_presentation(state)
+        s = self.string_presentation(state.dropped_blocks)
         
         for _ in range(self.n_sim):
             self.search(state)
@@ -96,10 +96,11 @@ class MCTS():
         Returns:
             v: the negative of the value of the current state
         """
-        s = self.string_presentation(state)
+        s = self.string_presentation(state.dropped_blocks)
         terminate = state.depth == state.max_depth
         if terminate: 
             return min(state.probs)
+        # state.save_image()
         state = state.copy()
         if s not in self.Ps:
             # leaf node
@@ -108,11 +109,11 @@ class MCTS():
             self.Ps[s] = {}
             dropped_index_image = DataProcessor.merge_blocks(state.dropped_index_img_blocks, 
                                                                           state.block_dim)
-            
+            valid_block_ids = self.env.get_valid_block_ids(state)
             for block_id in range(len(state.lost_blocks)):
                 if state.lost_blocks[block_id] is None:
                     continue
-                for index in state.lost_list:
+                for index in valid_block_ids:
                     for angle in range(4): 
                         cp_dropped_block = deepcopy(state.dropped_blocks)
                         cp_dropped_block[index] = np.rot90(state.lost_blocks[block_id], k=angle)
@@ -126,21 +127,20 @@ class MCTS():
                         probs.append(prob)
                         action = (block_id, index, angle)
                         self.Ps[s][action] = prob
+                        # new_image = DataProcessor.merge_blocks(cp_dropped_block, state.block_dim, state.mode)
+                        # cv2.imwrite('output/sample.png', new_image)
+                        # print(action, prob)
+                        # print()
             self.Ns[s] = 0
             return min(max(probs), min(state.probs))
      
         cur_best = -float('inf')
         best_act = -1
-        lost_blocks = state.lost_blocks
-        lost_list = state.lost_list
-        
-        dropped_index_image = DataProcessor.merge_blocks(state.dropped_index_img_blocks, 
-                                                                        state.block_dim)
-        for block_id in range(len(lost_blocks)):
-            if lost_blocks[block_id] is None:
+        valid_block_ids = self.env.get_valid_block_ids(state)
+        for block_id in range(len(state.lost_blocks)):
+            if state.lost_blocks[block_id] is None:
                 continue
-            block = lost_blocks[block_id]
-            for index in lost_list:
+            for index in valid_block_ids:
                 for angle in range(4): 
                     action = (block_id, index, angle)
                     if (s, action) in self.Qsa:
@@ -148,16 +148,15 @@ class MCTS():
                             self.c_puct * self.Ps[s][action] * math.sqrt(self.Ns[s]) / (
                                 1 + self.Nsa[(s, action)])
                     else:
-                        if action not in self.Ps[s]:
-                            self.Ps[s][action] = 0
                         u = self.c_puct * self.Ps[s][action] * math.sqrt(self.Ns[s] + EPS)  # Q = 0 ?
                     if u > cur_best:
                         cur_best = u
                         best_act = action
                         
+                        
+        state.probs.append(self.Ps[s][best_act])
         next_state = self.env.step(state, best_act)
         v = self.search(next_state)
-        next_state.probs.append(v)
         
         if (s, best_act) in self.Qsa:
             self.Qsa[(s, best_act)] = (self.Nsa[(s, best_act)] * self.Qsa[(s, best_act)] + v) / (

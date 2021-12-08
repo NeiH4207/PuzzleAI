@@ -58,7 +58,7 @@ def main():
     model.eval()
     
     env = Environment()
-    mcts = MCTS(env, model, n_sim=10, c_puct=3)
+    mcts = MCTS(env, model, n_sim=100, c_puct=3)
     
     state = dotdict({
         'blocks': blocks,
@@ -81,11 +81,13 @@ def main():
     })
     
     state = State(state)
+    
     while state.depth < state.max_depth:
-        action, _ = mcts.get_probs(state, 0)
+        action, prob = mcts.get_probs(state, 0)
         state = env.step(state, action)
         state.save_image('recovered_' + args.file_name)
-        print('Done step:', state.depth + 1)
+        print('Done step: {} / {}'.format(state.depth, state.max_depth))
+        # print('Probability: {}'.format(prob))
         
     original_blocks = [np.rot90(original_blocks[i], k=state.angles[i]) for i in state.orders]
     recovered_image = DataProcessor.merge_blocks(
