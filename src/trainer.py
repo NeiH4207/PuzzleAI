@@ -1,3 +1,4 @@
+import os
 import torch as T
 import torch.nn as nn
 import torch.optim as optim
@@ -94,7 +95,10 @@ class Trainer:
     
     def save_train_losses(self):
         plt.plot(self.train_losses)
-        plt.savefig("{}/{}_{}".format('output/', self.model.name, 'train_losses.png'))
+        out_dir = 'output/train_losses'
+        if not os.path.exists(out_dir):
+            os.makedirs(out_dir)
+        plt.savefig("{}/{}_{}".format(out_dir, self.model.name, 'train_losses.png'))
     
         
     def test(self):
