@@ -1,6 +1,6 @@
 
 configs = {
-    'preprocess': True,
+    'preprocess': False,
     'test-size': 0.2,
     'validation-size': 0.1,
     'train-size': 0.7,
@@ -8,9 +8,6 @@ configs = {
     'batch-size': 32,
     'epochs': 10,
     'learning-rate': 0.001,
-    'momentum': 0.9,
-    'decay': 0.0,
-    'nesterov': True,
     'loss': 'categorical_crossentropy',
     'metrics': ['accuracy'],
     'optimizer': 'adam',

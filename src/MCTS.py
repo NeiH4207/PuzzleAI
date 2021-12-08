@@ -127,7 +127,7 @@ class MCTS():
                         probs.append(prob)
                         action = (block_id, index, angle)
                         self.Ps[s][action] = prob
-                        # new_image = DataProcessor.merge_blocks(cp_dropped_block, state.block_dim, state.mode)
+                        new_image = DataProcessor.merge_blocks(cp_dropped_block, state.block_dim, state.mode)
                         # cv2.imwrite('output/sample.png', new_image)
                         # print(action, prob)
                         # print()

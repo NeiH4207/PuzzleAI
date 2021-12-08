@@ -1,15 +1,10 @@
-import _pickle as cPickle
-from numpy.core.shape_base import block
-from models.dla import DLA
+
 from src.data_helper import DataHelper
 from configs import configs, img_configs
-import cv2
-import numpy as np
 from src.trainer import Trainer
-from models.vgg import VGG
 from models.ProNet import ProNet
 import torch.nn as nn
-import cv
+import cv2
 
 def main():
     DataProcessor = DataHelper()
@@ -31,15 +26,11 @@ def main():
         
     print("Train set size: ", len(trainset['data']))
     print("Test set size: ", len(testset['data']))
-    # testset = {
-    #     'data':testset['data'][:1000],
-    #     'target':testset['target'][:1000]
-    # }
     ''' print sample '''
     print("Sample: ", trainset['data'][0][0].shape)
-    trainer = Trainer(model=ProNet(img_configs['image-size']), loss=nn.MSELoss, optimizer='adam',
+    trainer = Trainer(model=ProNet(img_configs['image-size']), lr=0.001, loss='soft_margin', optimizer='adas',
                       train_loader=trainset, test_loader=testset, batch_size=64, epochs=10)
-    trainer.model.load(2, 100)
+    # trainer.model.load_checkpoint(2, 100)
     trainer.train()
     # trainer.test()
     sample_img = trainset['data'][0][0]

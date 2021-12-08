@@ -16,11 +16,11 @@ class Trainer:
                  print_every=1, save_every=100, save_dir="./trainned_models",
                  save_name="model.pt", verbose=True):
         self.model = model
-        self.loss = loss
+        self.model.set_loss_function(loss)
+        self.model.set_optimizer(optimizer, lr)
         self.train_loader = train_loader
         self.test_loader = test_loader
         self.device = device
-        self.lr = lr
         self.epochs = epochs
         self.batch_size = batch_size
         self.print_every = print_every
@@ -29,11 +29,6 @@ class Trainer:
         self.save_name = save_name
         self.verbose = verbose
         self.train_losses = []
-        
-        if optimizer != "sgd":
-            self.optimizer = Adas(self.model.parameters(), lr=self.lr)
-        else:
-            self.optimizer = optim.SGD(self.parameters(), lr=self.lr)
 
         self.train_losses = []
         self.valid_losses = []
@@ -74,25 +69,23 @@ class Trainer:
                 input_2 = Variable(T.FloatTensor(np.array(input_2).astype(np.float64)).to(self.device))
                 input_3 = Variable(T.FloatTensor(np.array(input_3).astype(np.float64)).to(self.device))
                 targets = T.FloatTensor(np.array(targets).reshape(-1, 1).astype(np.float64)).to(self.device)
-                self.optimizer.zero_grad()
+                self.model.reset_grad()
                 output = self.model(input_1, input_2, input_3)
-                loss = self.loss_v(output, targets)
+                loss = self.model.loss(output, targets)
                 loss.backward()
                 self.model.train_losses.append(loss.item())
                 self.train_losses.append(loss.item())
-                self.optimizer.step()
+                self.model.step()
                 
                 t.set_postfix(loss=loss.item())
 
                 if batch_idx % self.save_every == 0:
                     self.save_train_losses()
                     self.model.save_train_losses(self.train_losses)
+                    self.model.save_checkpoint(epoch, batch_idx)
                     self.test()
-                    self.model.save(epoch, batch_idx)
 
-    def loss_v(self, output, target):
-        return F.binary_cross_entropy(output, target)
-    
+            
     def print_loss(self, epoch, batch_idx, loss):
         print("Epoch: {}, Batch: {}, Loss: {}".format(epoch, batch_idx, loss))
 
@@ -116,7 +109,7 @@ class Trainer:
                 input_3 = T.FloatTensor(np.array(input_3).astype(np.float64)).to(self.device)
                 target = T.FloatTensor(np.array(_target).reshape(-1, 1).astype(np.float64)).to(self.device)
                 output = self.model(input_1, input_2, input_3)
-                loss = self.loss_v(output, target)
+                loss = self.model.loss(output, target)
                 target_out = np.round(output.cpu().numpy()[0][0])
                 test_loss += loss.item()
                 correct += 1 if target_out == _target else 0

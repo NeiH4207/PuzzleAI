@@ -24,7 +24,7 @@ def parse_args():
     parser.add_argument('--model-path', type=str, default='./trainned_models/')
     parser.add_argument('--model-name', type=str, default='model_2_0.pt')
     parser.add_argument('--output-path', type=str, default='./output/recovered_images/')
-    parser.add_argument('--file-name', type=str, default='mcfaddin_2.png')
+    parser.add_argument('--file-name', type=str, default='cayuga_1.png')
     parser.add_argument('--block-size', type=int, default=(16, 16))
     parser.add_argument('--block-dim', type=int, default=(2, 2))
     parser.add_argument('--image-size-out', type=int, default=(512, 512))

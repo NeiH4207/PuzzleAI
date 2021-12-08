@@ -1,9 +1,12 @@
 
 import numpy as np
 import torch
+from torch import optim
 import torch.nn as nn
 import torch.nn.functional as F
 import os
+
+from AdasOptimizer.adasopt_pytorch import Adas
 
 class dotdict(dict):
     def __getattr__(self, name):
@@ -121,6 +124,44 @@ class ProNet(nn.Module):
         
         self.train_losses = []
         
+        
+    def set_loss_function(self, loss):
+        if loss == "mse":
+            self.loss = nn.MSELoss()
+        elif loss == "cross_entropy":
+            self.loss = nn.CrossEntropyLoss()
+        elif loss == "bce":
+            self.loss = nn.BCELoss()
+        elif loss == "bce_logits":
+            self.loss = nn.BCEWithLogitsLoss()
+        elif loss == "l1":
+            self.loss = nn.L1Loss()
+        elif loss == "smooth_l1":
+            self.loss = nn.SmoothL1Loss()
+        elif loss == "soft_margin":
+            self.loss = nn.SoftMarginLoss()
+        else:
+            raise ValueError("Loss function not found")
+        
+    def set_optimizer(self, optimizer, lr):
+        if optimizer == "sgd":
+            self.optimizer = optim.SGD(self.parameters(), lr=lr)
+        elif optimizer == "adam":
+            self.optimizer = optim.Adam(self.parameters(), lr=lr)
+        elif optimizer == "adadelta":
+            self.optimizer = optim.Adadelta(self.parameters(), lr=lr)
+        elif optimizer == "adagrad":
+            self.optimizer = optim.Adagrad(self.parameters(), lr=lr)
+        elif optimizer == "rmsprop":
+            self.optimizer = optim.RMSprop(self.parameters(), lr=lr)
+        else:
+            self.optimizer = Adas(self.parameters(), lr=lr)
+    def reset_grad(self):
+        self.optimizer.zero_grad()
+        
+    def step(self):
+        self.optimizer.step()
+    
     def forward(self, x1, x2, x3):
         # forward color features                                     
         x1 = x1.view(-1, 3, self.input_shape[0], self.input_shape[1])  
@@ -150,20 +191,21 @@ class ProNet(nn.Module):
         input_3 = torch.FloatTensor(input_3).float().to(self.device)
         return self.forward(input_1, input_2, input_3).cpu().data.numpy()[0][0]
           
-    def save_checkpoint(self, epoch, batch_idx):
-        torch.save({
-            'state_dict': self.state_dict(),
-            'train_loss': self.train_losses,
-        }, "{}/{}_{}_{}.pt".format(args.save_dir, args.save_name, epoch, batch_idx))
-        
-        
     def load_checkpoint(self, epoch, batch_idx):
         checkpoint = torch.load("{}/{}_{}_{}.pt".format(args.save_dir, args.save_name, epoch, batch_idx), map_location=self.device)
         self.load_state_dict(checkpoint['state_dict'])
         self.train_losses = checkpoint['train_loss']
+        self.optimizer.load_state_dict(checkpoint['optimizer'])
         # self.load_state_dict(checkpoint)
         print('-- Load model succesfull!')
-    
+        
+    def save_checkpoint(self, epoch, batch_idx):
+        torch.save({
+            'state_dict': self.state_dict(),
+            'train_loss': self.train_losses,
+            'optimizer': self.optimizer.state_dict()
+        }, "{}/{}_{}_{}.pt".format(args.save_dir, args.save_name, epoch, batch_idx))
+        
     def save_train_losses(self, train_losses):
         self.train_losses = train_losses
         
