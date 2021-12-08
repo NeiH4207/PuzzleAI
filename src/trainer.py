@@ -80,7 +80,8 @@ class Trainer:
                 
                 t.set_postfix(loss=loss.item())
 
-                if batch_idx % self.save_every == 0:
+                if batch_idx % self.save_every == 0 and batch_idx != 0:
+                    self.save_model()
                     self.save_train_losses()
                     self.model.save_train_losses(self.train_losses)
                     self.model.save_checkpoint(epoch, batch_idx)
@@ -117,6 +118,7 @@ class Trainer:
                 target_out = np.round(output.cpu().numpy()[0][0])
                 test_loss += loss.item()
                 correct += 1 if target_out == _target else 0
+                tqdm.set_postfix(correct=correct)
         test_loss /= len(self.test_loader['data'])
         self.test_losses.append(test_loss)
         self.test_acc.append(correct / len(self.test_loader['data']))
