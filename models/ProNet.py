@@ -92,14 +92,14 @@ class ProNet(nn.Module):
         self.device = 'cuda' if torch.cuda.is_available() else 'cpu'
         self.input_shape = input_shape
         self.conv1 = nn.Conv2d(3, args.num_channels>>4, 3, stride=1, padding=1).to(self.device)
-        self.conv2 = nn.Conv2d(args.num_channels>>4, args.num_channels, 3, stride=1, padding=1).to(self.device)
+        self.conv2 = nn.Conv2d(args.num_channels>>4, args.num_channels>>2, 3, stride=1, padding=1).to(self.device)
         self.conv3 = nn.Conv2d(args.num_channels>>2, args.num_channels, 3, stride=1, padding=1).to(self.device)
         
         self.conv4 = nn.Conv2d(2, args.num_channels>>4, 3, stride=1, padding=1).to(self.device)
         self.conv5 = nn.Conv2d(args.num_channels>>4, args.num_channels>>4, 3, stride=1).to(self.device)
         
         self.bn1 = nn.BatchNorm2d(args.num_channels>>4).to(self.device)
-        self.bn2 = nn.BatchNorm2d(args.num_channels).to(self.device)
+        self.bn2 = nn.BatchNorm2d(args.num_channels>>2).to(self.device)
         self.bn3 = nn.BatchNorm2d(args.num_channels).to(self.device)
         self.bn4 = nn.BatchNorm2d(args.num_channels>>4).to(self.device)
         self.bn5 = nn.BatchNorm2d(args.num_channels>>4).to(self.device)
@@ -171,6 +171,7 @@ class ProNet(nn.Module):
         
         x1 = F.relu(self.bn1(self.conv1(x1)))   
         x1 = F.relu(self.bn2(self.conv2(x1)))
+        x1 = F.relu(self.bn3(self.conv3(x1)))
                                
         x1 = F.relu(self.resnet(x1))        
         x1 = x1.view(-1, self.last_channel_size)           

@@ -75,7 +75,9 @@ class MCTS():
                 probs = [1 / len(actions) for _ in range(len(actions))]
             else:
                 probs = [x / counts_sum for x in counts]
-        return actions[argmax(probs)], probs
+        return actions[argmax(probs)], (self.Ps[s][actions[argmax(probs)]], 
+                                        self.Qsa[(s, actions[argmax(probs)])], 
+                                        self.Nsa[(s, actions[argmax(probs)])])
 
     def search(self, state):
         """
@@ -127,7 +129,7 @@ class MCTS():
                         probs.append(prob)
                         action = (block_id, index, angle)
                         self.Ps[s][action] = prob
-                        new_image = DataProcessor.merge_blocks(cp_dropped_block, state.block_dim, state.mode)
+                        # new_image = DataProcessor.merge_blocks(cp_dropped_block, state.block_dim, state.mode)
                         # cv2.imwrite('output/sample.png', new_image)
                         # print(action, prob)
                         # print()

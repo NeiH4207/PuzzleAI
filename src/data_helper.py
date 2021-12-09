@@ -87,51 +87,59 @@ class DataHelper:
             index_img_blocks.append(index_image)
         
         for i in range(len(dataset)):
-            image = dataset[i]
-            image = self.convert_array_to_rgb_image(image, 32, 32)
-            image = cv2.resize(image, IMG_SIZE, interpolation = cv2.INTER_AREA)
-            blocks = self.split_image_to_blocks(image, block_dim)
-            dropped_blocks, lost_blocks, lost_labels = self.random_drop_blocks(blocks)
-            block_shape = blocks[0].shape
-            dropped_index_img_blocks = [np.ones(block_size) if i in lost_labels else np.zeros(block_size)
-                                        for i in range(block_length)]
-            # 
+            org_image = dataset[i]
+            org_image = self.convert_array_to_rgb_image(org_image, 32, 32)
+            org_image = cv2.resize(org_image, IMG_SIZE, interpolation = cv2.INTER_AREA)
+            # cv2.imwrite('output/sample.png', org_image)
+            for angle in range(4):
+                # rotate image
+                image = np.rot90(org_image, k=angle)
+                # cv2.imwrite('output/sample.png', image)
             
-            for index in range(1, block_length):
-                if index in lost_labels:
-                    continue
-                recovered_image_blocks = copy(dropped_blocks)
-                recovered_image = self.merge_blocks(recovered_image_blocks, block_dim, mode=1)
-                cp_dropped_index_img_blocks = copy(dropped_index_img_blocks)
-                cp_dropped_index_img_blocks[index] = np.ones(block_size)
-                dropped_index_image = self.merge_blocks(cp_dropped_index_img_blocks, block_dim) 
-                data = [recovered_image, index_img_blocks[index], dropped_index_image]
-                new_dataset['data'].append(data)
-                new_dataset['target'].append(1)
+                blocks = self.split_image_to_blocks(image, block_dim)
+                dropped_blocks, lost_blocks, lost_labels = self.random_drop_blocks(blocks)
+                block_shape = blocks[0].shape
+                dropped_index_img_blocks = [np.ones(block_size) if i in lost_labels else np.zeros(block_size)
+                                            for i in range(block_length)]
                 
-                angle = np.random.randint(1, 4)
-                rotate_block = np.rot90(recovered_image_blocks[index], angle)
-                recovered_image_blocks[index] = rotate_block
-                recovered_image = self.merge_blocks(recovered_image_blocks, block_dim, mode=1)
-                data = [recovered_image, index_img_blocks[index], dropped_index_image]
-                new_dataset['data'].append(data)
-                new_dataset['target'].append(0)
-                
-                
-            dropped_index_image = self.merge_blocks(dropped_index_img_blocks, block_dim) 
-            ''' false blocks '''
-            for index in lost_labels:
-                for false_index in lost_labels:
-                    if index == false_index:
+                for index in range(1, block_length):
+                    
+                    if index in lost_labels:
                         continue
-                    for angle in range(0, 4):
-                        if np.random.uniform() > 0.5:
+                    recovered_image_blocks = copy(dropped_blocks)
+                    recovered_image = self.merge_blocks(recovered_image_blocks, block_dim, mode=1)
+                    cp_dropped_index_img_blocks = copy(dropped_index_img_blocks)
+                    cp_dropped_index_img_blocks[index] = np.ones(block_size)
+                    dropped_index_image = self.merge_blocks(cp_dropped_index_img_blocks, block_dim) 
+                    data = [recovered_image, index_img_blocks[index], dropped_index_image]
+                    new_dataset['data'].append(data)
+                    new_dataset['target'].append(1)
+                    
+                    angle = np.random.randint(1, 4)
+                    rotate_block = np.rot90(recovered_image_blocks[index], angle)
+                    recovered_image_blocks[index] = rotate_block
+                    recovered_image = self.merge_blocks(recovered_image_blocks, block_dim, mode=1)
+                    data = [recovered_image, index_img_blocks[index], dropped_index_image]
+                    new_dataset['data'].append(data)
+                    # cv2.imwrite('output/sample.png', recovered_image)
+                    new_dataset['target'].append(0)
+                    
+                    
+                dropped_index_image = self.merge_blocks(dropped_index_img_blocks, block_dim) 
+                ''' false blocks '''
+                for index in lost_labels:
+                    for other_index in lost_labels:
+                        if np.random.uniform() < 0.5:
                             continue
+                        if index == other_index:
+                            continue
+                        angle = np.random.randint(0, 4)
                         recovered_image_blocks = copy(dropped_blocks)
-                        recovered_image_blocks[index] = np.rot90(blocks[false_index])
+                        recovered_image_blocks[index] = np.rot90(blocks[other_index])
                         recovered_image = self.merge_blocks(recovered_image_blocks, block_dim, mode=1)
                         data = [recovered_image, index_img_blocks[index], dropped_index_image]
                         new_dataset['data'].append(data)
+                        # cv2.imwrite('output/sample.png', recovered_image)
                         new_dataset['target'].append(0)
                     
         return new_dataset

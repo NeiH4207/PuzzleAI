@@ -1,12 +1,7 @@
 import os
 import torch as T
-import torch.nn as nn
-import torch.optim as optim
-import torch.nn.functional as F
 import numpy as np
-from AdasOptimizer.adasopt_pytorch import Adas
 from torch.autograd import Variable
-from torch.utils.data import DataLoader
 from matplotlib import pyplot as plt
 from src.data_helper import DataProcessor
 from tqdm import tqdm
@@ -81,8 +76,8 @@ class Trainer:
                 t.set_postfix(loss=loss.item())
 
                 if batch_idx % self.save_every == 0 and batch_idx != 0:
-                    self.save_model()
                     self.save_train_losses()
+                    self.model.save_checkpoint(epoch, batch_idx)
                     self.model.save_train_losses(self.train_losses)
                     self.model.save_checkpoint(epoch, batch_idx)
                     self.test()
@@ -107,7 +102,8 @@ class Trainer:
         test_loss = 0
         correct = 0
         with T.no_grad():
-            for data, _target in tqdm(zip(self.test_loader['data'], self.test_loader['target']), desc="Testing", ncols=10):
+            t = tqdm(zip(self.test_loader['data'], self.test_loader['target']), desc="Testing")
+            for _iter, (data, _target) in enumerate(t):
                 input_1, input_2, input_3 = DataProcessor.convert_image_to_three_dim(data[0]), data[1], data[2]
                 input_1 = T.FloatTensor(np.array(input_1).astype(np.float64)).to(self.device)
                 input_2 = T.FloatTensor(np.array(input_2).astype(np.float64)).to(self.device)
@@ -118,7 +114,8 @@ class Trainer:
                 target_out = np.round(output.cpu().numpy()[0][0])
                 test_loss += loss.item()
                 correct += 1 if target_out == _target else 0
-                tqdm.set_postfix(correct=correct)
+                if _iter % 10 == 0:
+                    t.set_postfix(loss=test_loss/(1+_iter), acc=correct/(1+_iter))
         test_loss /= len(self.test_loader['data'])
         self.test_losses.append(test_loss)
         self.test_acc.append(correct / len(self.test_loader['data']))
