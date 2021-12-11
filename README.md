@@ -1,6 +1,4 @@
-# Train CIFAR10 with PyTorch
-
-I'm playing with [PyTorch](http://pytorch.org/) on the CIFAR10 dataset.
+# Procon 2021
 
 ## Prerequisites
 - Python 3.6+
@@ -8,5 +6,8 @@ I'm playing with [PyTorch](http://pytorch.org/) on the CIFAR10 dataset.
 
 ## Training
 ```
-# Start training with: 
+## Start training with: 
 python main.py
+
+## Data Source
+https://github.com/openimages/dataset/blob/main/READMEV3.md
