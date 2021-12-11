@@ -127,7 +127,7 @@ class DataHelper:
             org_image = cv2.resize(org_image, IMG_SIZE, interpolation = cv2.INTER_AREA)
             # rotate image
             image = np.rot90(org_image, k=np.random.randint(0, 4))
-            cv2.imwrite('output/sample.png', image)
+            # cv2.imwrite('output/sample.png', image)
         
             blocks = self.split_image_to_blocks(image, block_dim)
             dropped_blocks, lost_block_labels, _ = self.random_drop_blocks(blocks)

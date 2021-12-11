@@ -6,16 +6,17 @@ from models.ProNet import ProNet
 import cv2
 
 def main():
-    configs['preprocess'] = False
+    configs['preprocess'] = True
     DataProcessor = DataHelper()
     file_dir = "input/data/images_2017_11/2017_11/test/"
+    file_dir = "input/data/images_data/"
     # file_dir = "/sharedfiles/cifar-10-batches-py/"
-    file_name = "data_batch_1.bin"
+    file_name = "image_data_batch_0.bin"
     if configs['preprocess']:
-        dataset = DataProcessor.load_data_from_binary_file(file_dir, file_name)[b'data']
+        dataset = DataProcessor.load_data_from_binary_file(file_dir, file_name)
         dataset = DataProcessor.generate_data(dataset, 
                                         img_configs['block-dim'],
-                                        img_configs['block-size'])
+                                        img_configs['block-size'], is_array=False)
         
         DataProcessor.save_data_to_binary_file(dataset, "input/dataset2x2.bin")     
         trainset, testset = DataProcessor.split_dataset(dataset, 0.98, saved=True)
