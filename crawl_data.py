@@ -1,10 +1,10 @@
 
 import argparse
-from src.data_helper import DataHelper
+from src.data_helper import DataProcessor
 
 def parse_args():
     parser = argparse.ArgumentParser()
-    parser.add_argument('-b', '--batch-size', type=int, default=1, help='batch size')
+    parser.add_argument('-b', '--batch-size', type=int, default=1000, help='batch size')
     parser.add_argument('-s', '--skiprows', type=int, default=0, help='skip size')
     parser.add_argument('-d', '--data-dir', type=str, default='data', help='data directory')
     parser.add_argument('-o', '--output-dir', type=str, default='data', help='output directory')
@@ -14,7 +14,6 @@ def parse_args():
     
 def main():
     args = parse_args()
-    DataProcessor = DataHelper()
     file_dir = "input/data/images_2017_11/2017_11/" + args.type + "/"
     # file_dir = "input/data/stl10_binary/"
     file_name = "images.csv"

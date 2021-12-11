@@ -5,9 +5,8 @@ import numpy as np
 import cv2
 from numpy.core.numeric import indices
 from numpy.random.mtrand import random
-from configs import *
+from configs import img_configs
 from copy import deepcopy as copy
-import h5py
 import pandas as pd
 import urllib
 from tqdm import tqdm
