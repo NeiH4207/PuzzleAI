@@ -77,7 +77,6 @@ class Trainer:
                 output = T.cat(output, 1)
                 loss = self.model.loss(output, targets)
                 loss.backward()
-                self.model.train_losses.append(loss.item())
                 self.train_losses.append(loss.item())
                 self.model.step()
                 
