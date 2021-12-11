@@ -53,7 +53,7 @@ class DataHelper:
             cPickle.dump(dataset, f)
         
         
-    def read_url_csv(self, file_dir, file_name, chunksize=256, skiprows=0):
+    def read_url_csv(self, file_dir, file_name, chunksize=256, skiprows=0, first_batch=1):
         """
         crawl image from url in csv file
         :param file_dir: directory of file
@@ -81,14 +81,15 @@ class DataHelper:
                     data.append(image)
                 except:
                     continue
-            self.save_data_to_binary_file(data, file_dir + 'images/image_data_batch_' + str(index) + '.bin')
+            _index = index + first_batch
+            self.save_data_to_binary_file(data, file_dir + 'images/image_data_batch_' + str(_index) + '.bin')
             
             size = img_configs['max-size'][0] >> 1 # np.random.randint(1, 3)
             block_size = (size, size)
             block_dim = (img_configs['max-size'][0] // size, img_configs['max-size'][1] // size)
             data_batch = self.generate_data(data, block_dim, block_size, is_array=False)
-            self.save_data_to_binary_file(data_batch, file_dir + 'data_batch_' + str(index) + '.bin')
-            print('Finish saving data batch ' + str(index) + ' / num rows: ' + str(len(data_batch['data'])))
+            self.save_data_to_binary_file(data_batch, file_dir + 'data_batch_' + str(_index) + '.bin')
+            print('Finish saving data batch ' + str(_index) + ' / num rows: ' + str(len(data_batch['data'])))
         return data
             
     def unpickle(self, file):
