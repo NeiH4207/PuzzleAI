@@ -15,7 +15,7 @@ def parse_args():
     parser.add_argument('--model-path', type=str, default='./trainned_models/')
     parser.add_argument('--model-name', type=str, default='model_2_0.pt')
     parser.add_argument('--output-path', type=str, default='./output/recovered_images/')
-    parser.add_argument('-f', '--file-name', type=str, default='natural_6.png')
+    parser.add_argument('-f', '--file-name', type=str, default='cayuga_1.png')
     parser.add_argument('--block-size', type=int, default=(64, 64))
     parser.add_argument('--block-dim', type=int, default=(2, 2))
     parser.add_argument('--image-size-out', type=int, default=(512, 512))
@@ -27,7 +27,7 @@ def main():
     original_image = cv2.imread(args.image_path + args.file_name)
     state = State(original_image, args.block_size, args.block_dim)
     model = ProNet(state.image_size)
-    model.load_checkpoint(1, 164)
+    model.load_checkpoint(1, 1300)
     
     model.eval()
     
