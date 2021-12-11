@@ -1,4 +1,4 @@
-from utils import *
+from utils import dotdict
 
 configs = {
     'preprocess': False,
@@ -33,7 +33,6 @@ img_configs = {
 
 model_configs = dotdict({
     'dropout': 0.7,
-    'cuda': torch.cuda.is_available(),
     'num_channels': 256,
     'save_dir': './trainned_models',
     'save_name': 'model_2x2'
