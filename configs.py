@@ -3,6 +3,7 @@ from utils import dotdict
 configs = {
     'preprocess': False,
     'test-size': 0.2,
+    'num-dataset': 1,
     'validation-size': 0.1,
     'train-size': 0.7,
     'test-size': 0.2,

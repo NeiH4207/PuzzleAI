@@ -4,7 +4,7 @@ from src.data_helper import DataProcessor
 
 def parse_args():
     parser = argparse.ArgumentParser()
-    parser.add_argument('-b', '--batch-size', type=int, default=1000, help='batch size')
+    parser.add_argument('-b', '--batch-size', type=int, default=10, help='batch size')
     parser.add_argument('-s', '--skiprows', type=int, default=5, help='skip size')
     parser.add_argument('-d', '--data-dir', type=str, default='data', help='data directory')
     parser.add_argument('-o', '--output-dir', type=str, default='data', help='output directory')
