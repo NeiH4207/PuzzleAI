@@ -1,3 +1,4 @@
+from utils import *
 
 configs = {
     'preprocess': False,
@@ -18,9 +19,10 @@ configs = {
 }
 
 img_configs = {
-    'image-size': (32, 32),
+    'max-size': (128, 128),
+    'image-size': (128, 128),
     'image-channels': 3,
-    'block-size': (16, 16),
+    'block-size': (64, 64),
     'block-dim': (2, 2),
     'drop-rate': 0.5,
     'image-type': 'float32',
@@ -28,3 +30,11 @@ img_configs = {
     'image-mean': [0.485, 0.456, 0.406],
     'image-std': [0.229, 0.224, 0.225],
 }
+
+model_configs = dotdict({
+    'dropout': 0.7,
+    'cuda': torch.cuda.is_available(),
+    'num_channels': 256,
+    'save_dir': './trainned_models',
+    'save_name': 'model_2x2'
+})

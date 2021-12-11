@@ -4,25 +4,9 @@ import torch
 from torch import optim
 import torch.nn as nn
 import torch.nn.functional as F
-import os
+from configs import model_configs
 
 from AdasOptimizer.adasopt_pytorch import Adas
-
-class dotdict(dict):
-    def __getattr__(self, name):
-        return self[name]
-    
-args = dotdict({
-    'lr': 0.001,
-    'dropout': 0.7,
-    'epochs': 20,
-    'batch_size': 64,
-    'cuda': torch.cuda.is_available(),
-    'num_channels': 128,
-    'optimizer': 'adas',
-    'save_dir': './trainned_models',
-    'save_name': 'model_2x2'
-})
 
 # 3x3 convolution
 def conv3x3(in_channels, out_channels, stride=1):
@@ -59,10 +43,10 @@ class ResNet(nn.Module):
         super(ResNet, self).__init__()
         super(ResNet, self).__init__()
         self.device = 'cuda' if torch.cuda.is_available() else 'cpu'
-        self.in_channels = args.num_channels
-        self.layer1 = self.make_layer(block, args.num_channels, layers[0])
-        self.layer2 = self.make_layer(block, args.num_channels, layers[1], 2)
-        self.layer3 = self.make_layer(block, args.num_channels, layers[2], 2)
+        self.in_channels = model_configs.num_channels
+        self.layer1 = self.make_layer(block, model_configs.num_channels, layers[0])
+        self.layer2 = self.make_layer(block, model_configs.num_channels, layers[1], 2)
+        self.layer3 = self.make_layer(block, model_configs.num_channels, layers[2], 2)
         self.avg_pool = nn.AvgPool2d(2)
         self.max_pool = nn.MaxPool2d(2)
     def make_layer(self, block, out_channels, blocks, stride=1):
@@ -90,28 +74,27 @@ class ProNet(nn.Module):
         super(ProNet, self).__init__()
         self.name = 'ProNet'
         self.device = 'cuda' if torch.cuda.is_available() else 'cpu'
+        if self.device == 'cuda':
+            print('Using GPU')
         self.input_shape = input_shape
-        self.conv1 = nn.Conv2d(3, args.num_channels>>4, 3, stride=1, padding=1).to(self.device)
-        self.conv2 = nn.Conv2d(args.num_channels>>4, args.num_channels>>2, 3, stride=1, padding=1).to(self.device)
-        self.conv3 = nn.Conv2d(args.num_channels>>2, args.num_channels, 3, stride=1, padding=1).to(self.device)
+        self.conv1 = nn.Conv2d(3, model_configs.num_channels>>4, 3, stride=1).to(self.device)
+        self.conv2 = nn.Conv2d(model_configs.num_channels>>4, model_configs.num_channels>>2, 3, stride=1).to(self.device)
+        self.conv3 = nn.Conv2d(model_configs.num_channels>>2, model_configs.num_channels, 3, stride=1).to(self.device)
         
-        self.conv4 = nn.Conv2d(2, args.num_channels>>4, 3, stride=1, padding=1).to(self.device)
-        self.conv5 = nn.Conv2d(args.num_channels>>4, args.num_channels>>4, 3, stride=1).to(self.device)
+        self.conv4 = nn.Conv2d(2, model_configs.num_channels>>4, 3, stride=2).to(self.device)
+        self.conv5 = nn.Conv2d(model_configs.num_channels>>4, model_configs.num_channels>>4, 3, stride=2).to(self.device)
         
-        self.bn1 = nn.BatchNorm2d(args.num_channels>>4).to(self.device)
-        self.bn2 = nn.BatchNorm2d(args.num_channels>>2).to(self.device)
-        self.bn3 = nn.BatchNorm2d(args.num_channels).to(self.device)
-        self.bn4 = nn.BatchNorm2d(args.num_channels>>4).to(self.device)
-        self.bn5 = nn.BatchNorm2d(args.num_channels>>4).to(self.device)
+        self.bn1 = nn.BatchNorm2d(model_configs.num_channels>>4).to(self.device)
+        self.bn2 = nn.BatchNorm2d(model_configs.num_channels>>2).to(self.device)
+        self.bn3 = nn.BatchNorm2d(model_configs.num_channels).to(self.device)
+        self.bn4 = nn.BatchNorm2d(model_configs.num_channels>>4).to(self.device)
+        self.bn5 = nn.BatchNorm2d(model_configs.num_channels>>4).to(self.device)
         
         self.avg_pool = nn.AvgPool2d(2).to(self.device)  
         self.max_pool = nn.MaxPool2d(2).to(self.device)
         self.resnet = ResNet(ResidualBlock, [2, 2, 2]).to(self.device)  
         
-        self.last_channel_size = (int(args.num_channels) * input_shape[0] * input_shape[1]) >> 6
-        self.last_channel_size_2 = int(args.num_channels>>4) * ((input_shape[0] - 2)) * ((input_shape[1] - 2)) 
-        
-        self.fc1 = nn.Linear(self.last_channel_size + self.last_channel_size_2, 512).to(self.device)
+        self.fc1 = nn.Linear(1024 + 784, 512).to(self.device)
         self.fc_bn1 = nn.BatchNorm1d(512).to(self.device)
 
         self.fc2 = nn.Linear(512, 256).to(self.device)
@@ -121,6 +104,14 @@ class ProNet(nn.Module):
         self.fc_bn3 = nn.BatchNorm1d(128).to(self.device)
         
         self.fc4 = nn.Linear(128, num_classes).to(self.device)
+        
+        self.fc5 = nn.Linear(512, 256).to(self.device)
+        self.fc_bn5 = nn.BatchNorm1d(256).to(self.device)
+    
+        self.fc6 = nn.Linear(256, 128).to(self.device)
+        self.fc_bn6 = nn.BatchNorm1d(128).to(self.device)
+        
+        self.fc7 = nn.Linear(128, 4).to(self.device)    
         
         self.train_losses = []
         
@@ -156,6 +147,7 @@ class ProNet(nn.Module):
             self.optimizer = optim.RMSprop(self.parameters(), lr=lr)
         else:
             self.optimizer = Adas(self.parameters(), lr=lr)
+            
     def reset_grad(self):
         self.optimizer.zero_grad()
         
@@ -169,34 +161,41 @@ class ProNet(nn.Module):
         x3 = x3.view(-1, 1, self.input_shape[0], self.input_shape[1])
         xt = torch.cat((x2, x3), 1)
         
-        x1 = F.relu(self.bn1(self.conv1(x1)))   
-        x1 = F.relu(self.bn2(self.conv2(x1)))
-        x1 = F.relu(self.bn3(self.conv3(x1)))
+        x1 = self.max_pool(F.relu(self.bn1(self.conv1(x1))))  
+        x1 = self.max_pool(F.relu(self.bn2(self.conv2(x1))))
+        x1 = self.avg_pool(F.relu(self.bn3(self.conv3(x1))))
                                
         x1 = F.relu(self.resnet(x1))        
-        x1 = x1.view(-1, self.last_channel_size)           
+        dim = (x1.shape[1] * x1.shape[2] * x1.shape[3])
+        x1 = x1.view(-1, dim)           
         
-        xt = F.relu(self.bn4(self.conv4(xt)))                       
-        xt = F.relu(self.bn5(self.conv5(xt)))    
-        xt = xt.view(-1, self.last_channel_size_2)   
+        xt = self.max_pool(F.relu(self.bn4(self.conv4(xt))))                    
+        xt = self.avg_pool(F.relu(self.bn5(self.conv5(xt)))) 
+        dim_2 = (xt.shape[1] * xt.shape[2] * xt.shape[3])
+        xt = xt.view(-1, dim_2)   
         x = torch.cat((x1, xt), 1)                               
-        x = F.dropout(F.relu(self.fc_bn1(self.fc1(x))), p=args.dropout, training=self.training)
-        x = F.dropout(F.relu(self.fc_bn2(self.fc2(x))), p=args.dropout, training=self.training)
-        x = F.relu(self.fc_bn3(self.fc3(x)))
-        out = self.fc4(x)                
-        return torch.sigmoid(out)
+        x = F.dropout(F.relu(self.fc_bn1(self.fc1(x))), p=model_configs.dropout, training=self.training)
+        x = F.dropout(F.relu(self.fc_bn2(self.fc2(x))), p=model_configs.dropout, training=self.training)
+        out = F.relu(self.fc_bn3(self.fc3(x)))
+        out = self.fc4(out)               
+        
+        out_2 = F.dropout(F.relu(self.fc_bn6(self.fc6(x))), p=model_configs.dropout, training=self.training)
+        out_2 = self.fc7(out_2)
+         
+        return torch.sigmoid(out), torch.softmax(out_2, dim=1)
     
     def predict(self, input_1, input_2, input_3):
         input_1 = torch.FloatTensor(input_1).float().to(self.device)
         input_2 = torch.FloatTensor(input_2).float().to(self.device)
         input_3 = torch.FloatTensor(input_3).float().to(self.device)
-        return self.forward(input_1, input_2, input_3).cpu().data.numpy()[0][0]
+        output, angle = self.forward(input_1, input_2, input_3)
+        return output.cpu().data.numpy()[0], angle.cpu().data.numpy()[0]
           
     def load_checkpoint(self, epoch, batch_idx):
-        checkpoint = torch.load("{}/{}_{}_{}.pt".format(args.save_dir, args.save_name, epoch, batch_idx), map_location=self.device)
+        checkpoint = torch.load("{}/{}_{}_{}.pt".format(model_configs.save_dir, model_configs.save_name, epoch, batch_idx), map_location=self.device)
         self.load_state_dict(checkpoint['state_dict'])
         self.train_losses = checkpoint['train_loss']
-        self.optimizer.load_state_dict(checkpoint['optimizer'])
+        self.optimizer = checkpoint['optimizer']
         # self.load_state_dict(checkpoint)
         print('-- Load model succesfull!')
         
@@ -204,16 +203,16 @@ class ProNet(nn.Module):
         torch.save({
             'state_dict': self.state_dict(),
             'train_loss': self.train_losses,
-            'optimizer': self.optimizer.state_dict()
-        }, "{}/{}_{}_{}.pt".format(args.save_dir, args.save_name, epoch, batch_idx))
+            'optimizer': self.optimizer
+        }, "{}/{}_{}_{}.pt".format(model_configs.save_dir, model_configs.save_name, epoch, batch_idx))
         
     def save_train_losses(self, train_losses):
         self.train_losses = train_losses
         
     def save(self, epoch, batch_idx):
-        torch.save(self.state_dict(), "{}/{}_{}_{}.pt".format(args.save_dir, args.save_name, epoch, batch_idx))
+        torch.save(self.state_dict(), "{}/{}_{}_{}.pt".format(model_configs.save_dir, model_configs.save_name, epoch, batch_idx))
         print("Model saved")
         
     def load(self, epoch, batch_idx):
-        self.load_state_dict(torch.load("{}/{}_{}_{}.pt".format(args.save_dir, args.save_name, epoch, batch_idx)))
+        self.load_state_dict(torch.load("{}/{}_{}_{}.pt".format(model_configs.save_dir, model_configs.save_name, epoch, batch_idx)))
         print("Model loaded")

@@ -9,8 +9,6 @@ from src.data_helper import DataProcessor
 EPS = 1e-8
 log = logging.getLogger(__name__)
 
-
-
 class MCTS():
     """
     This class handles the MCTS tree.
@@ -52,12 +50,16 @@ class MCTS():
 
         counts = []
         actions = []
-        for block_id in range(len(state.lost_blocks)):
-            if state.lost_blocks[block_id] is None:
-                continue
-            for index in state.lost_list:
+        lost_positions = set()
+        for i in range(state.block_dim[0]):
+            for j in range(state.block_dim[1]):
+                if state.lost_block_labels[i][j] == 1:
+                    lost_positions.add((i, j))
+        valid_block_pos = self.env.get_valid_block_pos(state)
+        for x, y in valid_block_pos:
+            for _x, _y in lost_positions:
                 for angle in range(4): 
-                    action = (block_id, index, angle)
+                    action = ((x, y), (_x, _y), angle)
                     if (s, action) in self.Qsa:
                         counts.append(self.Qsa[(s, action)])
                         actions.append(action)
@@ -107,44 +109,47 @@ class MCTS():
         if s not in self.Ps:
             # leaf node
             probs = []
+            lost_positions = set()
+            for i in range(state.block_dim[0]):
+                for j in range(state.block_dim[1]):
+                    if state.lost_block_labels[i][j] == 1:
+                        lost_positions.add((i, j))
             
             self.Ps[s] = {}
-            dropped_index_image = DataProcessor.merge_blocks(state.dropped_index_img_blocks, 
-                                                                          state.block_dim)
-            valid_block_ids = self.env.get_valid_block_ids(state)
-            for block_id in range(len(state.lost_blocks)):
-                if state.lost_blocks[block_id] is None:
-                    continue
-                for index in valid_block_ids:
-                    for angle in range(4): 
-                        cp_dropped_block = deepcopy(state.dropped_blocks)
-                        cp_dropped_block[index] = np.rot90(state.lost_blocks[block_id], k=angle)
-                        recovered_image = DataProcessor.merge_blocks(
-                            cp_dropped_block, state.block_dim, state.mode)
-                        recovered_image = DataProcessor.convert_image_to_three_dim(recovered_image)
-                        index_blocks = [np.zeros(state.block_size) if i != index else np.ones(state.block_size) 
-                                for i in range(state.num_blocks)]
-                        index_image = DataProcessor.merge_blocks(index_blocks, state.block_dim)
-                        prob = self.model.predict(recovered_image, index_image, dropped_index_image)
-                        probs.append(prob)
-                        action = (block_id, index, angle)
-                        self.Ps[s][action] = prob
-                        # new_image = DataProcessor.merge_blocks(cp_dropped_block, state.block_dim, state.mode)
+            dropped_index_image = DataProcessor.merge_blocks(state.lost_index_img_blocks, mode='gray')
+            valid_block_pos = self.env.get_valid_block_pos(state)
+            for x, y in valid_block_pos:
+                for _x, _y in lost_positions:
+                    cp_dropped_block = deepcopy(state.dropped_blocks)
+                    cp_dropped_block[x][y] = state.blocks[_x][_y]
+                    recovered_image = DataProcessor.merge_blocks(cp_dropped_block)
+                    recovered_image = DataProcessor.convert_image_to_three_dim(recovered_image)
+                    prob, angle_prob = self.model.predict(recovered_image, state.index_imgs[x][y], dropped_index_image)
+                    for angle in range(4):
+                        action = ((x, y), (_x, _y), angle)
+                        self.Ps[s][action] = prob * angle_prob[angle]
+                        # block = np.rot90(state.blocks[_x][_y], k=angle)
+                        # cp_dropped_block[x][y] = block
+                        # new_image = DataProcessor.merge_blocks(cp_dropped_block)
                         # cv2.imwrite('output/sample.png', new_image)
-                        # print(action, prob)
+                        # print(action, prob * angle_prob[angle])
                         # print()
+                    probs.append(prob * angle_prob[angle])
             self.Ns[s] = 0
             return min(max(probs), min(state.probs))
      
         cur_best = -float('inf')
         best_act = -1
-        valid_block_ids = self.env.get_valid_block_ids(state)
-        for block_id in range(len(state.lost_blocks)):
-            if state.lost_blocks[block_id] is None:
-                continue
-            for index in valid_block_ids:
+        lost_positions = set()
+        for i in range(state.block_dim[0]):
+            for j in range(state.block_dim[1]):
+                if state.lost_block_labels[i][j] == 1:
+                    lost_positions.add((i, j))
+        valid_block_pos = self.env.get_valid_block_pos(state)
+        for x, y in valid_block_pos:
+            for _x, _y in lost_positions:
                 for angle in range(4): 
-                    action = (block_id, index, angle)
+                    action = ((x, y), (_x, _y), angle)
                     if (s, action) in self.Qsa:
                         u = self.Qsa[(s, action)] + \
                             self.c_puct * self.Ps[s][action] * math.sqrt(self.Ns[s]) / (

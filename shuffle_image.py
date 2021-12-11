@@ -35,11 +35,11 @@ def main():
     image = cv2.imread(args.image_path + args.file_name_in)
         
     if args.mode == 'bw':
-        image = DataProcess.convert_rgb_to_bw(image)
+        image = DataProcess.convert_rgb_to_gray(image)
         
     image = cv2.resize(image, image_size)
     blocks = DataProcess.split_image_to_blocks(image, block_dim)
-    blocks, labels = DataProcess.shuffle_blocks(blocks, rotate=False)
+    blocks, labels = DataProcess.shuffle_blocks(blocks, rotate=True)
     image = DataProcess.merge_blocks(blocks, block_dim, mode=1)
     
     if args.file_name_out is None:

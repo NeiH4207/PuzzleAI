@@ -4,24 +4,31 @@ import os
 import numpy as np
 import cv2
 from numpy.core.numeric import indices
+from numpy.random.mtrand import random
 from configs import *
 from copy import deepcopy as copy
 import h5py
+import pandas as pd
+import urllib
+from tqdm import tqdm
 
-# Data for computer vision
 class DataHelper:
     def __init__(self):
         pass
-
-    def get_data(self, path):
+    
+    def downloadImage(self, url):
         """
-        Get data from a file
-        :param path: path to the file
-        :return: data
+        Download image from url
+        :param url: url of image
+        :return: image
         """
-        with open(path, 'r') as f:
-            data = f.read()
-        return data
+        try:
+            image = urllib.request.urlopen(url)
+            image = np.asarray(bytearray(image.read()), dtype="uint8")
+            image = cv2.imdecode(image, cv2.IMREAD_COLOR)
+            return image
+        except:
+            return None
     
     def load_data_from_binary_file(self, path, file_name):
         """
@@ -33,12 +40,6 @@ class DataHelper:
         dataset = self.unpickle(file_dir)
         return dataset
     
-    def load_data(self, path, file_name):
-
-        file_dir = path + file_name
-        dataset = h5py.File(file_dir, 'r')
-        return dataset
-    
     def save_data_to_binary_file(self, dataset, path):
         """
         Save dataset to binary file
@@ -46,101 +47,166 @@ class DataHelper:
         :param path: path to the file
         :return: None
         """
+        dir_path = path.split('/')[:-1]
+        dir_path = '/'.join(dir_path)
+        if not os.path.exists(dir_path):
+            os.makedirs(dir_path)
         with open(path, 'wb') as f:
             cPickle.dump(dataset, f)
         
         
-    def get_data_from_csv(self, path):
+    def read_url_csv(self, file_dir, file_name, chunksize=256, skiprows=0):
         """
-        Get data from a csv file
-        :param path: path to the file
-        :return: data
+        crawl image from url in csv file
+        :param file_dir: directory of file
+        :param file_name: file name
+        :param low_memory: low memory
+        :return: dataframe
         """
-        data = []
-        with open(path, 'r') as f:
-            reader = csv.reader(f)
-            for row in reader:
-                data.append(row)
+        file_path = file_dir + file_name
+        reader = pd.read_csv(file_path, sep=',',
+                             chunksize=chunksize,
+                             skiprows=skiprows,
+                             low_memory=True)
+        
+        # read url from OriginalLandingURL column
+        for index, chunk in enumerate(reader):
+            data = []
+            t = tqdm(chunk['OriginalURL'], desc='Reading url')
+            for url in t:
+                image = self.downloadImage(url)
+                if image is None:
+                    continue
+                # resize image if valid size
+                try:
+                    image = cv2.resize(image, img_configs['max-size'])
+                    data.append(image)
+                except:
+                    continue
+            self.save_data_to_binary_file(data, file_dir + 'images/image_data_batch_' + str(index) + '.bin')
+            
+            size = img_configs['max-size'][0] >> 1 # np.random.randint(1, 3)
+            block_size = (size, size)
+            block_dim = (img_configs['max-size'][0] // size, img_configs['max-size'][1] // size)
+            data_batch = self.generate_data(data, block_dim, block_size, is_array=False)
+            self.save_data_to_binary_file(data_batch, file_dir + 'data_batch_' + str(index) + '.bin')
+            print('Finish saving data batch ' + str(index) + ' / num rows: ' + str(len(data_batch['data'])))
         return data
-    
+            
     def unpickle(self, file):
         import pickle
         with open(file, 'rb') as fo:
             dict = pickle.load(fo, encoding='bytes')
         return dict
     
-    def transform(self, dataset, block_dim, block_size):
-        new_dataset = {
-            'data': [],
-            'target': []
-        }
-        HEIGHT = img_configs['block-size'][0] * img_configs['block-dim'][0]
-        WIDTH = img_configs['block-size'][1] * img_configs['block-dim'][1]
+    def generate_data(self, dataset, block_dim, block_size, is_array=True):
+        HEIGHT = block_size[0] * block_dim[0]
+        WIDTH = block_size[1] * block_dim[1]
         IMG_SIZE = (HEIGHT, WIDTH)
         
-        index_img_blocks = []
-        block_length = block_dim[0] * block_dim[1]
-        for index in range(0, block_length):
-            index_blocks = [np.zeros(block_size) if i != index else np.ones(block_size) 
-                            for i in range(block_length)]
-            index_image = self.merge_blocks(index_blocks, block_dim)
-            index_img_blocks.append(index_image)
+        new_dataset = {
+            'data': [],
+            'target': [],
+            'block_dim': [],
+            'block_size': [],
+            'image_size': []
+        }
+        
+        dx = [0, 1, 0, -1]
+        dy = [1, 0, -1, 0]
+        
+        index_imgs = np.zeros((block_dim[0], block_dim[1], HEIGHT, WIDTH), dtype=np.int8)
+        
+        for i in range(block_dim[0]):
+            for j in range(block_dim[1]):
+                index_imgs[i][j][i * block_size[0]:(i + 1) * block_size[0], 
+                                 j * block_size[1]:(j + 1) * block_size[1]] = np.ones((block_size[0], block_size[1]), dtype=np.int8)
         
         for i in range(len(dataset)):
             org_image = dataset[i]
-            org_image = self.convert_array_to_rgb_image(org_image, 32, 32)
+            if is_array:
+                org_image = self.convert_array_to_rgb_image(org_image, 32, 32)
             org_image = cv2.resize(org_image, IMG_SIZE, interpolation = cv2.INTER_AREA)
-            # cv2.imwrite('output/sample.png', org_image)
-            for angle in range(4):
-                # rotate image
-                image = np.rot90(org_image, k=angle)
-                # cv2.imwrite('output/sample.png', image)
+            # rotate image
+            image = np.rot90(org_image, k=np.random.randint(0, 4))
+            cv2.imwrite('output/sample.png', image)
+        
+            blocks = self.split_image_to_blocks(image, block_dim)
+            dropped_blocks, lost_block_labels, _ = self.random_drop_blocks(blocks)
+            lost_index_img_blocks = np.empty((block_dim[0], block_dim[1], block_size[0], block_size[1]), dtype=np.int8)
             
-                blocks = self.split_image_to_blocks(image, block_dim)
-                dropped_blocks, lost_blocks, lost_labels = self.random_drop_blocks(blocks)
-                block_shape = blocks[0].shape
-                dropped_index_img_blocks = [np.ones(block_size) if i in lost_labels else np.zeros(block_size)
-                                            for i in range(block_length)]
-                
-                for index in range(1, block_length):
-                    
-                    if index in lost_labels:
+            for x in range(block_dim[0]):
+                for y in range(block_dim[1]):
+                    if lost_block_labels[x][y] == 0:
+                        lost_index_img_blocks[x][y] = np.zeros((block_size[0], block_size[1]), dtype=np.int8)
+                    else:
+                        lost_index_img_blocks[x][y] = np.ones((block_size[0], block_size[1]), dtype=np.int8)
+            
+            lost_positions = set()
+            for i in range(block_dim[0]):
+                for j in range(block_dim[1]):
+                    if lost_block_labels[i][j] == 1:
+                        lost_positions.add((i, j))
+                        
+            block_shape = blocks[0][0].shape
+            
+            if len(list(lost_positions)) < block_dim[0] * block_dim[1] - 1:
+                for x, y in [(i, j) for i in range(block_dim[0]) for j in range(block_dim[1])]:
+                    if (x, y) in lost_positions:
                         continue
                     recovered_image_blocks = copy(dropped_blocks)
-                    recovered_image = self.merge_blocks(recovered_image_blocks, block_dim, mode=1)
-                    cp_dropped_index_img_blocks = copy(dropped_index_img_blocks)
-                    cp_dropped_index_img_blocks[index] = np.ones(block_size)
-                    dropped_index_image = self.merge_blocks(cp_dropped_index_img_blocks, block_dim) 
-                    data = [recovered_image, index_img_blocks[index], dropped_index_image]
+                    recovered_image = self.merge_blocks(recovered_image_blocks)
+                    cp_dropped_index_img_blocks = copy(lost_index_img_blocks)
+                    cp_dropped_index_img_blocks[x][y] = np.ones(block_size)
+                    dropped_index_image = self.merge_blocks(cp_dropped_index_img_blocks, mode='gray') 
+                    data = [recovered_image, index_imgs[x][y], dropped_index_image]
+                    # cv2.imwrite('output/sample.png', recovered_image)
                     new_dataset['data'].append(data)
-                    new_dataset['target'].append(1)
+                    new_dataset['target'].append((1, 0))
+                    new_dataset['block_dim'].append(block_dim)
+                    new_dataset['block_size'].append(block_size)
+                    new_dataset['image_size'].append(IMG_SIZE)
                     
                     angle = np.random.randint(1, 4)
-                    rotate_block = np.rot90(recovered_image_blocks[index], angle)
-                    recovered_image_blocks[index] = rotate_block
-                    recovered_image = self.merge_blocks(recovered_image_blocks, block_dim, mode=1)
-                    data = [recovered_image, index_img_blocks[index], dropped_index_image]
-                    new_dataset['data'].append(data)
+                    rotated_block = np.rot90(recovered_image_blocks[x][y], angle)
+                    recovered_image_blocks[x][y] = rotated_block
+                    recovered_image = self.merge_blocks(recovered_image_blocks)
+                    data = [recovered_image, index_imgs[x][y], dropped_index_image]
                     # cv2.imwrite('output/sample.png', recovered_image)
-                    new_dataset['target'].append(0)
-                    
-                    
-                dropped_index_image = self.merge_blocks(dropped_index_img_blocks, block_dim) 
-                ''' false blocks '''
-                for index in lost_labels:
-                    for other_index in lost_labels:
-                        if np.random.uniform() < 0.5:
+                    new_dataset['data'].append(data)
+                    new_dataset['target'].append((0, 4 - angle))
+                    new_dataset['block_dim'].append(block_dim)
+                    new_dataset['block_size'].append(block_shape)
+                    new_dataset['image_size'].append(IMG_SIZE)
+                
+                
+            dropped_index_image = self.merge_blocks(lost_index_img_blocks, mode='gray') 
+            ''' false blocks '''
+            for x1, y1 in lost_positions:
+                for x2, y2 in lost_positions:
+                    if x1 == x2 and y1 == y2:
+                        continue
+                    chosen = False
+                    for i in range(4):
+                        x, y = x1 + dx[i], y1 + dy[i]
+                        if x < 0 or x >= block_dim[0] or y < 0 or y >= block_dim[1]:
                             continue
-                        if index == other_index:
-                            continue
-                        angle = np.random.randint(0, 4)
-                        recovered_image_blocks = copy(dropped_blocks)
-                        recovered_image_blocks[index] = np.rot90(blocks[other_index])
-                        recovered_image = self.merge_blocks(recovered_image_blocks, block_dim, mode=1)
-                        data = [recovered_image, index_img_blocks[index], dropped_index_image]
-                        new_dataset['data'].append(data)
-                        # cv2.imwrite('output/sample.png', recovered_image)
-                        new_dataset['target'].append(0)
+                        if (x, y) not in lost_positions:
+                            chosen = True
+                            break
+                    if not chosen:
+                        continue
+                    angle = np.random.randint(0, 4)
+                    recovered_image_blocks = copy(dropped_blocks)
+                    recovered_image_blocks[x1][y1] = np.rot90(blocks[x2][y2], k=angle)
+                    recovered_image = self.merge_blocks(recovered_image_blocks, mode='rgb')
+                    data = [recovered_image, index_imgs[x1][y1], dropped_index_image]
+                    # cv2.imwrite('output/sample.png', recovered_image)
+                    new_dataset['data'].append(data)
+                    new_dataset['target'].append((0, -1))
+                    new_dataset['block_dim'].append(block_dim)
+                    new_dataset['block_size'].append(block_shape)
+                    new_dataset['image_size'].append(IMG_SIZE)
                     
         return new_dataset
     
@@ -169,18 +235,23 @@ class DataHelper:
             np.random.shuffle(test_dataset_indices)
         train_dataset = {
             'data': [data['data'][i] for i in train_dataset_indices],
-            'target': [data['target'][i] for i in train_dataset_indices]
+            'target': [data['target'][i] for i in train_dataset_indices],
+            'block_dim': [data['block_dim'][i] for i in train_dataset_indices],
+            'block_size': [data['block_size'][i] for i in train_dataset_indices],
+            'image_size': [data['image_size'][i] for i in train_dataset_indices]
         }
         test_dataset = {
             'data': [data['data'][i] for i in test_dataset_indices],
-            'target': [data['target'][i] for i in test_dataset_indices]
+            'target': [data['target'][i] for i in test_dataset_indices],
+            'block_dim': [data['block_dim'][i] for i in test_dataset_indices],
+            'block_size': [data['block_size'][i] for i in test_dataset_indices],
+            'image_size': [data['image_size'][i] for i in test_dataset_indices]
         }
         if saved:
             self.save_data_to_binary_file(train_dataset, file_dir + 'train_dataset.bin')
             self.save_data_to_binary_file(test_dataset, file_dir + 'test_dataset.bin')
             
         return train_dataset, test_dataset
-    
     
     def load_train_test_dataset(self, file_dir, shuffle=True):
         """
@@ -196,6 +267,8 @@ class DataHelper:
             train_dataset['data'] = [train_dataset['data'][i] for i in indices]
             train_dataset['target'] = [train_dataset['target'][i] for i in indices]
         return train_dataset, test_dataset
+    
+    
     
     def convert_array_to_rgb_image(self, array, height, width):
         """
@@ -232,11 +305,11 @@ class DataHelper:
         image = three_dim_image[:, :, 0]
         return image
     
-    def convert_rgb_to_bw(self, rgb_image):
+    def convert_rgb_to_gray(self, rgb_image):
         """
-        Convert rgb image to black white image
+        Convert rgb image to gray image
         :param rgb_image: rgb image
-        :return: black white image
+        :return: gray image
         """
         gray_image = cv2.cvtColor(rgb_image, cv2.COLOR_BGR2GRAY)
         return gray_image
@@ -251,31 +324,30 @@ class DataHelper:
         block_size = image.shape[0] // block_dim[0], image.shape[1] // block_dim[1]
         blocks = []
         for i in range(block_dim[0]):
+            row = []
             for j in range(block_dim[1]):
                 block = image[i * block_size[0]:(i + 1) * block_size[0], j * block_size[1]:(j + 1) * block_size[1]]
-                blocks.append(block)
-        return blocks
+                row.append(block)
+            blocks.append(row)
+        return np.array(blocks)
     
-    def merge_blocks(self, blocks, block_dim=(2, 2), mode=0):
+    def merge_blocks(self, blocks, mode='rgb'):
         """
         Recover image from blocks
-        :param blocks: blocks
-        :param n_rows: number of rows
-        :param n_cols: number of columns
-        :param block_size: size of block
-        :mode: 0: black white, 1: rgb
+        :param blocks: blocks in image
+        :param mode: rgb or gray
         :return: image
         """
-        n_rows, n_cols = block_dim
-        image_size = blocks[0].shape[0] * n_rows, blocks[0].shape[1] * n_cols
+        n_rows, n_cols = blocks.shape[0], blocks.shape[1]
+        image_size = blocks[0][0].shape[0] * n_rows, blocks[0][0].shape[1] * n_cols
         h, w = image_size
-        block_size = blocks[0].shape[0], blocks[0].shape[1]
-        image_shape = (h, w) if mode == 0 else (h, w, 3)
-        image = np.zeros(image_shape, dtype=np.uint8)
+        block_size = blocks[0][0].shape[0], blocks[0][0].shape[1]
+        image_shape = (h, w) if mode == 'gray' else (h, w, 3)
+        image = np.empty(image_shape, dtype=np.uint8)
         for i in range(n_rows):
             for j in range(n_cols):
-                block = blocks[i * n_cols + j]
-                image[i * block_size[0]:(i + 1) * block_size[0], j * block_size[1]:(j + 1) * block_size[1]] = block
+                image[i * block_size[0]:(i + 1) * block_size[0], 
+                      j * block_size[1]:(j + 1) * block_size[1]] = blocks[i][j]
         return image
         
         
@@ -283,21 +355,23 @@ class DataHelper:
         """
         Shuffle blocks
         :param blocks: blocks
-        :return: shuffled blocks and labels each block
+        :return: shuffled blocks and labels
         """
-        n_blocks = len(blocks)
-        shuffled_blocks = [blocks[0]]
-        shuffled_labels = [0]
-        indices = set(range(1, n_blocks))
-        while len(indices) > 0:
-            index = np.random.choice(list(indices))
-            indices.remove(index)
-            block = blocks[index]
-            if rotate:
-                block = np.rot90(block, k=np.random.randint(4))
-            shuffled_blocks.append(block)
-            shuffled_labels.append(index)
-        return np.array(shuffled_blocks), np.array(shuffled_labels)
+        n_rows, n_cols = blocks.shape[0], blocks.shape[1]
+        shuffled_labels = np.zeros((n_rows, n_cols))
+        shuffled_blocks = np.empty(blocks.shape, dtype=np.ndarray)
+        indices = set((i, j) for i in range(n_rows) for j in range(n_cols) if (i, j) != (0, 0))
+        for i in range(n_rows):
+            for j in range(n_cols):
+                if (i, j) != (0, 0):
+                    x, y = np.random.choice(list(indices))
+                    indices.remove((x, y))
+                    block = blocks[x][y]
+                    if rotate:
+                        block = np.rot90(block, k=np.random.randint(4))
+                    shuffled_blocks[x][y] = block
+                    shuffled_labels[x][y] = i * n_cols + j
+        return shuffled_blocks, shuffled_labels
     
     def random_drop_blocks(self, blocks, prob=None):
         """
@@ -307,22 +381,65 @@ class DataHelper:
         :return: dropped blocks
         """
         if prob is None:
-            prob = max(np.random.uniform(), 0.1)
-        block_size = blocks[0].shape
-        n_blocks = len(blocks)
-        dropped_blocks = []
-        lost_blocks = []
-        lost_list = []
-        for i in range(1, n_blocks):
-            if np.random.uniform() < prob:
-                lost_list.append(i)
-                
-        for i in range(0, n_blocks):
-            if i in lost_list:
-                dropped_blocks.append(np.zeros(block_size))
-                lost_blocks.append(blocks[i])
-            else:
-                dropped_blocks.append(blocks[i])
-        return dropped_blocks, lost_blocks, lost_list
+            prob = np.random.uniform()
+        n_rows, n_cols = blocks.shape[0], blocks.shape[1]
+        n_steps = prob * n_rows * n_cols
+        masked = np.zeros((n_rows, n_cols), dtype=np.uint8)
+        dx = [0, 1, 0, -1]
+        dy = [-1, 0, 1, 0]
+        
+        block_size = blocks[0][0].shape
+        dropped_blocks = np.empty(blocks.shape, dtype=np.ndarray)
+        lost_block_labels = np.zeros((n_rows, n_cols))
+        next_position = set()
+        x, y = np.random.randint(0, n_rows), np.random.randint(0, n_cols)
+        masked[x][y] = 1
+        for i in range(4):
+            _x, _y = x + dx[i], y + dy[i]
+            if 0 <= _x < n_rows and 0 <= _y < n_cols:
+                next_position.add((_x, _y))
+        
+        for i in range(int(n_steps)):
+            next_pos = list(next_position)[np.random.choice(len(next_position))]
+            x = next_pos[0]
+            y = next_pos[1]
+            masked[x][y] = 1
+            next_position.remove(next_pos)
+            for j in range(4):
+                _x = x + dx[j]
+                _y = y + dy[j]
+                if _x >= 0 and _x < n_rows and _y >= 0 and _y < n_cols \
+                    and (x, y) not in next_position and masked[_x][_y] == 0:
+                    next_position.add((_x, _y))
+            
+        for i in range(n_rows):
+            for j in range(n_cols):
+                if masked[i][j] == 0:
+                    dropped_blocks[i][j] = np.zeros(block_size)
+                    lost_block_labels[i][j] = 1
+                else:
+                    dropped_blocks[i][j] = blocks[i][j]
+        return dropped_blocks, lost_block_labels, masked
+    
+    def drop_all_blocks(self, blocks, dim=(2,2)):
+        """
+        Drop all blocks
+        :param blocks: blocks
+        :param dim: dimension of block
+        :return: dropped blocks and labels
+        """
+        n_rows, n_cols = blocks.shape[0], blocks.shape[1]
+        dropped_blocks = np.empty(blocks.shape, dtype=np.ndarray)
+        dropped_labels = np.zeros((n_rows, n_cols))
+        masked = np.zeros((n_rows, n_cols), dtype=np.uint8)
+        for i in range(n_rows):
+            for j in range(n_cols):
+                if (i, j) != (0, 0):
+                    dropped_blocks[i][j] = np.zeros(blocks[0][0].shape)
+                    dropped_labels[i][j] = 1
+                else:
+                    masked[i][j] = 1
+                    dropped_blocks[i][j] = blocks[i][j]
+        return dropped_blocks, dropped_labels, masked
     
 DataProcessor = DataHelper()
