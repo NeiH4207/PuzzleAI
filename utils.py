@@ -3,6 +3,11 @@
     - msr_init: net parameter initialization.
     - progress_bar: progress bar mimic xlua.progress.
 '''
+import os
+import sys
+import time
+import torch
+
 
 class dotdict(dict):
     def __getattr__(self, name):

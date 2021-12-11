@@ -3,7 +3,6 @@ import _pickle as cPickle
 import os
 import numpy as np
 import cv2
-from numpy.core.numeric import indices
 from numpy.random.mtrand import random
 from configs import img_configs
 from copy import deepcopy as copy
@@ -27,7 +26,7 @@ class DataHelper:
             image = cv2.imdecode(image, cv2.IMREAD_COLOR)
             return image
         except:
-            return None
+            print('Error: ' + url)
     
     def load_data_from_binary_file(self, path, file_name):
         """
