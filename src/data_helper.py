@@ -120,7 +120,7 @@ class DataHelper:
                 index_imgs[i][j][i * block_size[0]:(i + 1) * block_size[0], 
                                  j * block_size[1]:(j + 1) * block_size[1]] = np.ones((block_size[0], block_size[1]), dtype=np.int8)
         
-        for i in range(len(dataset)):
+        for i in tqdm(range(len(dataset['data'])), desc='Generating data'):
             org_image = dataset[i]
             if is_array:
                 org_image = self.convert_array_to_rgb_image(org_image, 32, 32)
