@@ -21,8 +21,8 @@ def main():
     DataProcessor.read_url_csv(file_dir, file_name, 
                                chunksize=args.batch_size, 
                                skiprows=args.skiprows,
-                               first_batch=1,
-                               )
+                               first_batch=1, 
+                               only_save_img=True)
     
 if __name__ == "__main__":
     main()
