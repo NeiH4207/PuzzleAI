@@ -14,7 +14,7 @@ class MCTS():
     This class handles the MCTS tree.
     """
 
-    def __init__(self, env, model, n_sim=20, c_puct=1):
+    def __init__(self, env, model, n_sim=20, c_puct=1, pos_rate=0.8):
         self.env = env
         self.model = model
         self.n_sim = n_sim
@@ -104,7 +104,7 @@ class MCTS():
         terminate = state.depth == state.max_depth
         if terminate: 
             return min(state.probs)
-        # state.save_image()
+        state.save_image()
         state = state.copy()
         if s not in self.Ps:
             # leaf node
@@ -128,12 +128,12 @@ class MCTS():
                     for angle in range(4):
                         action = ((x, y), (_x, _y), angle)
                         self.Ps[s][action] = prob * angle_prob[angle]
-                        # block = np.rot90(state.blocks[_x][_y], k=angle)
-                        # cp_dropped_block[x][y] = block
-                        # new_image = DataProcessor.merge_blocks(cp_dropped_block)
-                        # cv2.imwrite('output/sample.png', new_image)
-                        # print(action, prob * angle_prob[angle])
-                        # print()
+                        block = np.rot90(state.blocks[_x][_y], k=angle)
+                        cp_dropped_block[x][y] = block
+                        new_image = DataProcessor.merge_blocks(cp_dropped_block)
+                        cv2.imwrite('output/sample.png', new_image)
+                        print(action, prob, angle_prob[angle])
+                        print()
                     probs.append(prob * angle_prob[angle])
             self.Ns[s] = 0
             return min(max(probs), min(state.probs))

@@ -22,8 +22,10 @@ def get_dataset(file_dir, file_name):
 
 def main():
     configs['preprocess'] = True
-    configs['num-dataset'] = 1
+    configs['num-dataset'] = 2
     file_dir = "input/data/images_data/"
+    trainer = Trainer(model=ProNet(img_configs['image-size']), lr=0.0001, loss='bce', optimizer='adas', batch_size=64, epochs=3)
+    trainer.model.load_checkpoint(1, 616)
     for i in range(configs['num-dataset']):
         file_name = "image_data_batch_{}.bin".format(i)
         trainset, testset = get_dataset(file_dir, file_name)
@@ -40,9 +42,8 @@ def main():
         sample_img = trainset['data'][_id][0]
         print('target: {} / Angle: {}'.format(trainset['target'][_id][0], trainset['target'][_id][1]))
         cv2.imwrite("output/sample.png", sample_img)
-        trainer = Trainer(model=ProNet(trainset['image_size'][0]), lr=0.0001, loss='bce', optimizer='adas',
-                        train_loader=trainset, test_loader=testset, batch_size=64, epochs=3)
-        trainer.model.load_checkpoint(1, 616)
+        trainer.train_loader = trainset
+        trainer.test_loader = testset
         trainer.train()
     
 if __name__ == "__main__":
