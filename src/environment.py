@@ -2,6 +2,7 @@ from copy import deepcopy
 import cv2
 
 import numpy as np
+from numpy.core.shape_base import block
 
 from src.data_helper import DataProcessor
 
@@ -18,6 +19,7 @@ class State:
         
     def make(self, image, block_size, block_dim):
         self.block_size = block_size
+        self.block_shape = (block_size[0], block_size[1], 3)
         self.block_dim = block_dim
         self.original_blocks = DataProcessor.split_image_to_blocks(image, block_dim)
         old_blocks = DataProcessor.split_image_to_blocks(image, block_dim)
@@ -36,13 +38,13 @@ class State:
                 else:
                     self.lost_index_img_blocks[x][y] = np.ones((block_size[0], block_size[1]), dtype=np.int8)
                 
-        self.index_imgs = np.zeros((block_dim[0], block_dim[1], self.image_size[0], self.image_size[1]), dtype=np.int8)
+        self.index_imgs = np.zeros((2, 2, 2 * block_size[0], 2 * block_size[1]), dtype=np.int8)
         
-        for i in range(block_dim[0]):
-            for j in range(block_dim[1]):
+        for i in range(2):
+            for j in range(2):
                 self.index_imgs[i][j][i * block_size[0]:(i + 1) * block_size[0], 
                                     j * block_size[1]:(j + 1) * block_size[1]] = np.ones((block_size[0], block_size[1]), dtype=np.int8)
-        
+        self.set_string_presentation()
         self.num_blocks = len(self.blocks)
         self.depth = 0
         self.max_depth = int(np.sum(self.lost_block_labels))
@@ -53,22 +55,23 @@ class State:
             for j in range(block_dim[1]):
                 self.inverse[i][j] = (i, j, 0)
         self.mode = 'rgb'
-        
+     
     def copy(self):
         """
         Returns a copy of the state.
         """
         state = State()
         state.block_size = self.block_size
+        state.block_shape = self.block_shape
         state.block_dim = self.block_dim
-        state.original_blocks = deepcopy(self.original_blocks)
+        state.original_blocks = self.original_blocks
         state.image_size = self.image_size
-        state.blocks = deepcopy(self.blocks)
+        state.blocks = self.blocks
         state.dropped_blocks = deepcopy(self.dropped_blocks)
         state.lost_block_labels = deepcopy(self.lost_block_labels)
         state.masked = deepcopy(self.masked)
         state.lost_index_img_blocks = deepcopy(self.lost_index_img_blocks)
-        state.index_imgs = deepcopy(self.index_imgs)
+        state.index_imgs = self.index_imgs
         state.num_blocks = self.num_blocks
         state.depth = self.depth
         state.max_depth = self.max_depth
@@ -76,7 +79,17 @@ class State:
         state.actions = deepcopy(self.actions)
         state.inverse = deepcopy(self.inverse)
         state.mode = self.mode
+        state.name = self.name
         return state
+       
+    def string_presentation(self, items):
+        return hash(str(items))
+    
+    def get_string_presentation(self):
+        return self.name
+    
+    def set_string_presentation(self):
+        self.name = self.string_presentation(self.dropped_blocks)
     
     def save_image(self, filename='sample.png'):
         new_img = DataProcessor.merge_blocks(self.dropped_blocks, 'rgb')
@@ -90,14 +103,18 @@ class Environment():
         self.name = name
         self.state = None
         self.reset()
+        self.next_step = {}
 
     def reset(self):
         return
-
+    
     def step(self, state, action):
         """
         Performs an action in the environment.
         """
+        s_name = state.get_string_presentation()
+        if (s_name, action) in self.next_step:
+            return self.next_step[(s_name, action)]
         (x, y), (_x, _y), angle = action
         next_s = state.copy()
         next_s.dropped_blocks[x][y] = np.rot90(state.blocks[_x][_y], k = angle)
@@ -107,6 +124,8 @@ class Environment():
         next_s.lost_index_img_blocks[x][y] = np.zeros(state.block_size)
         next_s.inverse[x][y] = (_x, _y, angle)
         next_s.depth += 1
+        next_s.set_string_presentation()
+        self.next_step[(s_name, action)] = next_s.copy()
         return next_s
     
     def get_next_block_ids(self, state, current_block_id):
@@ -122,13 +141,14 @@ class Environment():
                 continue
             next_block_ids.append(new_block_id)
     
-    def get_valid_block_pos(self, state):
+    def get_valid_block_pos(self, state, kmax=4):
         """
         Returns a list of actions.
         """
         dx = [0, 1, 0, -1]
         dy = [1, 0, -1, 0]
         chosen_block_ids = set()
+        best_square = np.zeros((state.block_dim[0], state.block_dim[1], 2), dtype=np.int8)
         for x in range(state.block_dim[0]):
             for y in range(state.block_dim[1]):
                 if state.masked[x][y] == 0:
@@ -136,9 +156,30 @@ class Environment():
                 for i in range(4):
                     new_x = x + dx[i]
                     new_y = y + dy[i]
-                    if new_x < 0 or new_x >= state.block_dim[0] or new_y < 0 or new_y >= state.block_dim[1]:
+                    if new_x < 0 or new_x >= state.block_dim[0] \
+                        or new_y < 0 or new_y >= state.block_dim[1]:
                         continue
                     if state.masked[new_x][new_y] == 0:
                         chosen_block_ids.add((new_x, new_y))
-                
-        return chosen_block_ids
+        ranks = np.zeros((state.block_dim[0], state.block_dim[1]), dtype=np.int8)
+        for x, y in chosen_block_ids:
+            counts = np.zeros((2, 2), dtype=np.int8)
+            corner = (max(0, x - 1), max(0, y - 1))
+            for i in range(corner[0], min(state.block_dim[0] - 1, x + 1)):
+                for j in range(corner[1], min(state.block_dim[1] - 1, y + 1)):
+                    counts[i - corner[0]][j - corner[1]] += \
+                        np.sum(state.masked[i:i + 2, j:j + 2])
+            mx = counts.max()
+            best_pos = np.argwhere(counts==mx)
+            ranks[x][y] = mx**2
+            best_pos = best_pos[np.random.randint(0, len(best_pos))]
+            best_square[x][y] = (corner[0] + best_pos[0], corner[1] + best_pos[1]) 
+        # print(ranks)
+        ranks = ranks / np.sum(ranks)
+        probs = [ranks[x][y] for x, y in chosen_block_ids]
+        chosen_block_ids = list(chosen_block_ids)
+        ids = np.random.choice(range(len(chosen_block_ids)),
+                                            size=min(kmax, len(chosen_block_ids)), 
+                                            p=probs, replace=False)
+        chosen_block_ids = [chosen_block_ids[i] for i in ids]
+        return chosen_block_ids, best_square

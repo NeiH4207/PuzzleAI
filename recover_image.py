@@ -6,7 +6,7 @@ from src.MCTS import MCTS
 from utils import *
 from src.environment import Environment, State
 from matplotlib import pyplot as plt
-
+from configs import *
 import argparse
 
 def parse_args():
@@ -15,9 +15,9 @@ def parse_args():
     parser.add_argument('--model-path', type=str, default='./trainned_models/')
     parser.add_argument('--model-name', type=str, default='model_2_0.pt')
     parser.add_argument('--output-path', type=str, default='./output/recovered_images/')
-    parser.add_argument('-f', '--file-name', type=str, default='natural_10.png')
+    parser.add_argument('-f', '--file-name', type=str, default='natural_1.png')
     parser.add_argument('--block-size', type=int, default=(64, 64))
-    parser.add_argument('--block-dim', type=int, default=(2, 2))
+    parser.add_argument('-bd', '--block-dim', type=tuple_type, default=(5, 7))
     parser.add_argument('--image-size-out', type=int, default=(512, 512))
     args = parser.parse_args()
     return args
@@ -26,13 +26,13 @@ def main():
     args = parse_args()
     original_image = cv2.imread(args.image_path + args.file_name)
     state = State(original_image, args.block_size, args.block_dim)
-    model = ProNet(state.image_size)
-    model.load_checkpoint(2, 800)
+    model = ProNet((img_configs['image-size']))
+    model.load_checkpoint(2, 1349)
     
     model.eval()
     
     env = Environment()
-    mcts = MCTS(env, model, n_sim=20, c_puct=2)
+    mcts = MCTS(env, model, n_sim=3, c_puct=1)
     
     start = time.time()
     
@@ -42,7 +42,8 @@ def main():
         state.save_image('recovered_' + args.file_name)
         print('Done step: {} / {}'.format(state.depth, state.max_depth))
         # print('Probability: {}'.format(prob))
-        print(info[0][0])
+        print(info[0], info[2])
+        print('Time: {}'.format(time.time() - start))
         
     original_blocks = np.zeros(state.original_blocks.shape, dtype=np.uint8)
     for i in range(args.block_dim[0]):

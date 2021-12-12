@@ -11,3 +11,8 @@ import torch
 class dotdict(dict):
     def __getattr__(self, name):
         return self[name]
+
+def tuple_type(strings):
+    strings = strings.replace("(", "").replace(")", "")
+    mapped_int = map(int, strings.split(","))
+    return tuple(mapped_int)

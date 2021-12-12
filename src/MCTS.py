@@ -31,9 +31,6 @@ class MCTS():
     def predict(self, state, temp=1):
         return self.getActionProb(state, temp)
     
-    def string_presentation(self, state):
-        return hash(str(state))
-        
     def get_probs(self, state, temp=1):
         """
         This function performs numMCTSSims simulations of MCTS starting from
@@ -43,26 +40,17 @@ class MCTS():
             probs: a policy vector where the probability of the ith action is
                    proportional to Nsa[(s,a)]**(1./temp)
         """
-        s = self.string_presentation(state.dropped_blocks)
+        s = state.get_string_presentation()
         
         for _ in range(self.n_sim):
             self.search(state)
 
         counts = []
         actions = []
-        lost_positions = set()
-        for i in range(state.block_dim[0]):
-            for j in range(state.block_dim[1]):
-                if state.lost_block_labels[i][j] == 1:
-                    lost_positions.add((i, j))
-        valid_block_pos = self.env.get_valid_block_pos(state)
-        for x, y in valid_block_pos:
-            for _x, _y in lost_positions:
-                for angle in range(4): 
-                    action = ((x, y), (_x, _y), angle)
-                    if (s, action) in self.Qsa:
-                        counts.append(self.Qsa[(s, action)])
-                        actions.append(action)
+        for action in self.Ps[s]: 
+            if (s, action) in self.Qsa:
+                counts.append(self.Qsa[(s, action)])
+                actions.append(action)
                         
         if temp == 0:
             bestAs = np.array(np.argwhere(counts == np.max(counts))).flatten()
@@ -100,66 +88,61 @@ class MCTS():
         Returns:
             v: the negative of the value of the current state
         """
-        s = self.string_presentation(state.dropped_blocks)
+        print('Simulating... ' + 'depth: ' + str(state.depth))
+        s = state.get_string_presentation()
         terminate = state.depth == state.max_depth
         if terminate: 
             return min(state.probs)
         state.save_image()
-        state = state.copy()
         if s not in self.Ps:
             # leaf node
             probs = []
-            lost_positions = set()
+            lost_positions = []
             for i in range(state.block_dim[0]):
                 for j in range(state.block_dim[1]):
                     if state.lost_block_labels[i][j] == 1:
-                        lost_positions.add((i, j))
+                        lost_positions.append((i, j))
             
             self.Ps[s] = {}
-            dropped_index_image = DataProcessor.merge_blocks(state.lost_index_img_blocks, mode='gray')
-            valid_block_pos = self.env.get_valid_block_pos(state)
+            
+            valid_block_pos, best_pos = self.env.get_valid_block_pos(state, kmax=2)
             for x, y in valid_block_pos:
                 for _x, _y in lost_positions:
-                    cp_dropped_block = deepcopy(state.dropped_blocks)
-                    cp_dropped_block[x][y] = state.blocks[_x][_y]
-                    recovered_image = DataProcessor.merge_blocks(cp_dropped_block)
-                    recovered_image = DataProcessor.convert_image_to_three_dim(recovered_image)
-                    prob, angle_prob = self.model.predict(recovered_image, state.index_imgs[x][y], dropped_index_image)
+                    # get dropped_subblocks 2x2 from dropped_blocks
+                    i, j = best_pos[x][y]
+                    subblocks = state.dropped_blocks[i:i+2, j:j+2]
                     for angle in range(4):
-                        action = ((x, y), (_x, _y), angle)
-                        self.Ps[s][action] = prob * angle_prob[angle]
                         block = np.rot90(state.blocks[_x][_y], k=angle)
-                        cp_dropped_block[x][y] = block
-                        new_image = DataProcessor.merge_blocks(cp_dropped_block)
-                        cv2.imwrite('output/sample.png', new_image)
-                        print(action, prob, angle_prob[angle])
-                        print()
-                    probs.append(prob * angle_prob[angle])
+                        subblocks[x - i][y - j] = block
+                        recovered_image = DataProcessor.merge_blocks(subblocks)
+                        recovered_image_ = DataProcessor.convert_image_to_three_dim(recovered_image)
+                        dropped_index_image = DataProcessor.merge_blocks(state.lost_index_img_blocks[i:i+2, j:j+2], mode='gray')
+                        prob, angle_prob = self.model.predict(recovered_image_, state.index_imgs[x-i][y-j], dropped_index_image)
+                        action = ((x, y), (_x, _y), angle)
+                        self.Ps[s][action] = prob[0] * angle_prob[0]
+                        subblocks[x - i][y - j] = np.zeros(state.block_shape, dtype=np.uint8)
+                        # new_image = deepcopy(state.dropped_blocks)
+                        # new_image[x][y] = np.rot90(state.blocks[_x][_y], k=angle)
+                        # new_image_ = DataProcessor.merge_blocks(new_image)
+                        # cv2.imwrite('output/sample.png', new_image_)
+                        # print(prob[0], angle_prob[0])
+                        # print()
+                        probs.append(prob * angle_prob[0])
             self.Ns[s] = 0
             return min(max(probs), min(state.probs))
      
         cur_best = -float('inf')
         best_act = -1
-        lost_positions = set()
-        for i in range(state.block_dim[0]):
-            for j in range(state.block_dim[1]):
-                if state.lost_block_labels[i][j] == 1:
-                    lost_positions.add((i, j))
-        valid_block_pos = self.env.get_valid_block_pos(state)
-        for x, y in valid_block_pos:
-            for _x, _y in lost_positions:
-                for angle in range(4): 
-                    action = ((x, y), (_x, _y), angle)
-                    if (s, action) in self.Qsa:
-                        u = self.Qsa[(s, action)] + \
-                            self.c_puct * self.Ps[s][action] * math.sqrt(self.Ns[s]) / (
-                                1 + self.Nsa[(s, action)])
-                    else:
-                        u = self.c_puct * self.Ps[s][action] * math.sqrt(self.Ns[s] + EPS)  # Q = 0 ?
-                    if u > cur_best:
-                        cur_best = u
-                        best_act = action
-                        
+        for action in self.Ps[s].keys():
+            if (s, action) in self.Qsa:
+                u = self.Qsa[(s, action)] + \
+                    self.c_puct * self.Ps[s][action] * math.sqrt(self.Ns[s]) / (
+                        1 + self.Nsa[(s, action)])
+            else:
+                u = self.c_puct * self.Ps[s][action] * math.sqrt(self.Ns[s] + EPS)  # Q = 0 ?
+            if u > cur_best:
+                cur_best = u
+                best_act = action
                         
         state.probs.append(self.Ps[s][best_act])
         next_state = self.env.step(state, best_act)

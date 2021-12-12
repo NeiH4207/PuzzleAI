@@ -1,4 +1,5 @@
 import os
+import cv2
 import torch as T
 import numpy as np
 from torch.autograd import Variable
@@ -112,6 +113,9 @@ class Trainer:
         with T.no_grad():
             t = tqdm(zip(self.test_loader['data'], self.test_loader['target']), desc="Testing")
             for _iter, (data, _target) in enumerate(t):
+                cv2.imwrite('output/sample.png', data[0])
+                print()
+                print(_target)
                 input_1, input_2, input_3 = DataProcessor.convert_image_to_three_dim(data[0]), data[1], data[2]
                 target = [self.convert_one_hot_target(_target)]
                 input_1 = T.FloatTensor(np.array(input_1).astype(np.float64)).to(self.device)

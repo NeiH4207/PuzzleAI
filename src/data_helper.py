@@ -3,6 +3,7 @@ import _pickle as cPickle
 import os
 import numpy as np
 import cv2
+from numpy.core.numeric import indices
 from numpy.random.mtrand import random
 from configs import img_configs
 from copy import deepcopy as copy
@@ -360,17 +361,25 @@ class DataHelper:
         n_rows, n_cols = blocks.shape[0], blocks.shape[1]
         shuffled_labels = np.zeros((n_rows, n_cols))
         shuffled_blocks = np.empty(blocks.shape, dtype=np.ndarray)
-        indices = set((i, j) for i in range(n_rows) for j in range(n_cols) if (i, j) != (0, 0))
+        _indices = []
         for i in range(n_rows):
             for j in range(n_cols):
-                if (i, j) != (0, 0):
-                    x, y = np.random.choice(list(indices))
-                    indices.remove((x, y))
-                    block = blocks[x][y]
-                    if rotate:
-                        block = np.rot90(block, k=np.random.randint(4))
-                    shuffled_blocks[x][y] = block
-                    shuffled_labels[x][y] = i * n_cols + j
+                _indices.append((i, j))
+        pos = [i for i in range(1, len(_indices))]
+        np.random.shuffle(pos)
+        pos = [0] + pos
+        indices = [_indices[i] for i in pos]
+        count = 0
+        
+        for i in range(n_rows):
+            for j in range(n_cols):
+                x, y = indices[count]
+                block = blocks[x][y]
+                if rotate and i != 0 and j != 0:
+                    block = np.rot90(block, k=np.random.randint(4))
+                shuffled_blocks[i][j] = block
+                shuffled_labels[x][y] = i * n_cols + j
+                count += 1
         return shuffled_blocks, shuffled_labels
     
     def random_drop_blocks(self, blocks, prob=None):
