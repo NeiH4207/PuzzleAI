@@ -132,7 +132,7 @@ class DataHelper:
             image = np.rot90(org_image, k=np.random.randint(0, 4))
             # cv2.imwrite('output/sample.png', image)
         
-            blocks = self.split_image_to_blocks(image, block_dim)
+            blocks = self.split_image_to_blocks(image, block_dim, outlier_rate=img_configs['outlier-rate'])
             dropped_blocks, lost_block_labels, _ = self.random_drop_blocks(blocks)
             lost_index_img_blocks = np.empty((block_dim[0], block_dim[1], block_size[0], block_size[1]), dtype=np.int8)
             
@@ -315,7 +315,7 @@ class DataHelper:
         gray_image = cv2.cvtColor(rgb_image, cv2.COLOR_BGR2GRAY)
         return gray_image
     
-    def split_image_to_blocks(self, image, block_dim=(2, 2)):
+    def split_image_to_blocks(self, image, block_dim=(2, 2), smoothing=False, outlier_rate=0):
         """
         Divide image to blocks
         :param image: image
@@ -328,7 +328,15 @@ class DataHelper:
             row = []
             for j in range(block_dim[1]):
                 block = image[i * block_size[0]:(i + 1) * block_size[0], j * block_size[1]:(j + 1) * block_size[1]]
-                row.append(block)
+                if smoothing:
+                    block = cv2.GaussianBlur(block, (3, 3), 0)
+                if outlier_rate > 0:
+                    for _i in range(block_size[0]):
+                        for _j in range(block_size[1]):
+                            if np.random.uniform() < outlier_rate:
+                                block[_i, _j][np.random.randint(0, 3)] = np.random.randint(0, 255)
+                                
+                row.append(block) 
             blocks.append(row)
         return np.array(blocks)
     

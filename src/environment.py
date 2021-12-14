@@ -21,7 +21,7 @@ class State:
         self.block_size = block_size
         self.block_shape = (block_size[0], block_size[1], 3)
         self.block_dim = block_dim
-        self.original_blocks = DataProcessor.split_image_to_blocks(image, block_dim)
+        self.original_blocks = DataProcessor.split_image_to_blocks(image, block_dim, smoothing=True)
         old_blocks = DataProcessor.split_image_to_blocks(image, block_dim)
         self.image_size = block_size[0] * block_dim[0], block_size[1] * block_dim[1]
         self.blocks = np.empty((block_dim[0], block_dim[1], block_size[0], block_size[1], 3), dtype=np.int8)
@@ -50,6 +50,7 @@ class State:
         self.max_depth = int(np.sum(self.lost_block_labels))
         self.probs = [1.0] 
         self.actions = []
+        self.last_action = (0, 0)
         self.inverse = np.zeros((block_dim[0], block_dim[1], 3), dtype=np.int8)
         for i in range(block_dim[0]):
             for j in range(block_dim[1]):
@@ -77,6 +78,7 @@ class State:
         state.max_depth = self.max_depth
         state.probs = deepcopy(self.probs)
         state.actions = deepcopy(self.actions)
+        state.last_action = self.last_action
         state.inverse = deepcopy(self.inverse)
         state.mode = self.mode
         state.name = self.name
@@ -89,7 +91,7 @@ class State:
         return self.name
     
     def set_string_presentation(self):
-        self.name = self.string_presentation(self.dropped_blocks)
+        self.name = self.string_presentation([self.dropped_blocks, self.masked])
     
     def save_image(self, filename='sample.png'):
         new_img = DataProcessor.merge_blocks(self.dropped_blocks, 'rgb')
@@ -117,15 +119,16 @@ class Environment():
             return self.next_step[(s_name, action)]
         (x, y), (_x, _y), angle = action
         next_s = state.copy()
-        next_s.dropped_blocks[x][y] = np.rot90(state.blocks[_x][_y], k = angle)
+        next_s.dropped_blocks[x][y] = np.rot90(state.blocks[_x][_y], k=angle)
         next_s.lost_block_labels[_x][_y] = 0
         next_s.masked[x][y] = 1
         next_s.actions.append(action)
         next_s.lost_index_img_blocks[x][y] = np.zeros(state.block_size)
         next_s.inverse[x][y] = (_x, _y, angle)
         next_s.depth += 1
+        next_s.last_action = (x, y)
         next_s.set_string_presentation()
-        self.next_step[(s_name, action)] = next_s.copy()
+        self.next_step[(s_name, action)] = next_s
         return next_s
     
     def get_next_block_ids(self, state, current_block_id):
@@ -149,18 +152,28 @@ class Environment():
         dy = [1, 0, -1, 0]
         chosen_block_ids = set()
         best_square = np.zeros((state.block_dim[0], state.block_dim[1], 2), dtype=np.int8)
-        for x in range(state.block_dim[0]):
-            for y in range(state.block_dim[1]):
-                if state.masked[x][y] == 0:
-                    continue
-                for i in range(4):
-                    new_x = x + dx[i]
-                    new_y = y + dy[i]
-                    if new_x < 0 or new_x >= state.block_dim[0] \
-                        or new_y < 0 or new_y >= state.block_dim[1]:
+        for i in range(4):
+            new_x = state.last_action[0] + dx[i]
+            new_y = state.last_action[1] + dy[i]
+            if new_x < 0 or new_x >= state.block_dim[0] \
+                or new_y < 0 or new_y >= state.block_dim[1]:
+                continue
+            if state.masked[new_x][new_y] == 0:
+                chosen_block_ids.add((new_x, new_y))
+        
+        if len(chosen_block_ids) == 0:
+            for x in range(state.block_dim[0]):
+                for y in range(state.block_dim[1]):
+                    if state.masked[x][y] == 0:
                         continue
-                    if state.masked[new_x][new_y] == 0:
-                        chosen_block_ids.add((new_x, new_y))
+                    for i in range(4):
+                        new_x = x + dx[i]
+                        new_y = y + dy[i]
+                        if new_x < 0 or new_x >= state.block_dim[0] \
+                            or new_y < 0 or new_y >= state.block_dim[1]:
+                            continue
+                        if state.masked[new_x][new_y] == 0:
+                            chosen_block_ids.add((new_x, new_y))
         ranks = np.zeros((state.block_dim[0], state.block_dim[1]), dtype=np.int8)
         for x, y in chosen_block_ids:
             counts = np.zeros((2, 2), dtype=np.int8)
@@ -171,7 +184,7 @@ class Environment():
                         np.sum(state.masked[i:i + 2, j:j + 2])
             mx = counts.max()
             best_pos = np.argwhere(counts==mx)
-            ranks[x][y] = mx**2
+            ranks[x][y] = np.exp(mx)
             best_pos = best_pos[np.random.randint(0, len(best_pos))]
             best_square[x][y] = (corner[0] + best_pos[0], corner[1] + best_pos[1]) 
         # print(ranks)

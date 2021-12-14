@@ -21,15 +21,16 @@ configs = {
 
 img_configs = {
     'max-size': (64, 64),
-    'image-size': (64, 64),
+    'image-size': (128, 128),
     'image-channels': 3,
-    'block-size': (32, 32),
+    'block-size': (64, 64),
     'block-dim': (2, 2),
     'drop-rate': 0.5,
     'image-type': 'float32',
     'image-normalize': True,
     'image-mean': [0.485, 0.456, 0.406],
     'image-std': [0.229, 0.224, 0.225],
+    'outlier-rate': 0.3,
 }
 
 model_configs = dotdict({

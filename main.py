@@ -8,7 +8,7 @@ import cv2
 
 def get_dataset(file_dir, file_name):
     if configs['preprocess']:
-        dataset = DataProcessor.load_data_from_binary_file(file_dir, file_name)
+        dataset = DataProcessor.load_data_from_binary_file(file_dir, file_name)[:20]
         dataset = DataProcessor.generate_data(dataset, 
                                         img_configs['block-dim'],
                                         img_configs['block-size'], is_array=False)
@@ -25,7 +25,7 @@ def main():
     configs['num-dataset'] = 2
     file_dir = "input/data/images_data/"
     trainer = Trainer(model=ProNet(img_configs['image-size']), lr=0.0001, loss='bce', optimizer='adas', batch_size=64, epochs=3)
-    trainer.model.load_checkpoint(1, 616)
+    # trainer.model.load_checkpoint(1, 616)
     for i in range(configs['num-dataset']):
         file_name = "image_data_batch_{}.bin".format(i)
         trainset, testset = get_dataset(file_dir, file_name)

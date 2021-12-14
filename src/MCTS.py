@@ -14,22 +14,18 @@ class MCTS():
     This class handles the MCTS tree.
     """
 
-    def __init__(self, env, model, n_sim=20, c_puct=1, pos_rate=0.8):
+    def __init__(self, env, model, n_sim=20, c_puct=1, pos_rate=0.8, n_bests = 256, verbose=False):
         self.env = env
         self.model = model
         self.n_sim = n_sim
         self.c_puct = c_puct
+        self.pos_rate = pos_rate
+        self.n_bests = n_bests
+        self.verbose = verbose
         self.Qsa  = {}  # stores Q values for s,a (as defined in the paper)
         self.Nsa  = {}  # stores #times edge s,a was visited
         self.Ns   = {}  # stores #times state s was visited
         self.Ps   = {}  # stores initial policy (returned by neural net)
-
-        self.Es   = {}  # stores env.get_env_ended ended for state s
-        self.Vs   = {}  # stores env.getValidMoves for state s
-        self.As   = {}  # stores agent position list for state s
-        
-    def predict(self, state, temp=1):
-        return self.getActionProb(state, temp)
     
     def get_probs(self, state, temp=1):
         """
@@ -53,7 +49,7 @@ class MCTS():
                 actions.append(action)
                         
         if temp == 0:
-            bestAs = np.array(np.argwhere(counts == np.max(counts))).flatten()
+            bestAs = np.array(np.argwhere(counts == np.max(counts)), dtype=object).flatten()
             bestA = np.random.choice(bestAs)
             probs = [0] * len(counts)
             probs[bestA] = 1
@@ -88,12 +84,13 @@ class MCTS():
         Returns:
             v: the negative of the value of the current state
         """
-        print('Simulating... ' + 'depth: ' + str(state.depth))
+        # print('Simulating... ' + 'depth: ' + str(state.depth))
         s = state.get_string_presentation()
         terminate = state.depth == state.max_depth
         if terminate: 
             return min(state.probs)
-        state.save_image()
+        if self.verbose:
+            state.save_image()
         if s not in self.Ps:
             # leaf node
             probs = []
@@ -105,12 +102,12 @@ class MCTS():
             
             self.Ps[s] = {}
             
-            valid_block_pos, best_pos = self.env.get_valid_block_pos(state, kmax=2)
+            valid_block_pos, best_pos = self.env.get_valid_block_pos(state, kmax=self.n_bests)
             for x, y in valid_block_pos:
                 for _x, _y in lost_positions:
                     # get dropped_subblocks 2x2 from dropped_blocks
                     i, j = best_pos[x][y]
-                    subblocks = state.dropped_blocks[i:i+2, j:j+2]
+                    subblocks = deepcopy(state.dropped_blocks[i:i+2, j:j+2])
                     for angle in range(4):
                         block = np.rot90(state.blocks[_x][_y], k=angle)
                         subblocks[x - i][y - j] = block
@@ -120,14 +117,14 @@ class MCTS():
                         prob, angle_prob = self.model.predict(recovered_image_, state.index_imgs[x-i][y-j], dropped_index_image)
                         action = ((x, y), (_x, _y), angle)
                         self.Ps[s][action] = prob[0] * angle_prob[0]
-                        subblocks[x - i][y - j] = np.zeros(state.block_shape, dtype=np.uint8)
+                        # subblocks[x - i][y - j] = np.zeros(state.block_shape, dtype=np.uint8)
                         # new_image = deepcopy(state.dropped_blocks)
                         # new_image[x][y] = np.rot90(state.blocks[_x][_y], k=angle)
                         # new_image_ = DataProcessor.merge_blocks(new_image)
                         # cv2.imwrite('output/sample.png', new_image_)
                         # print(prob[0], angle_prob[0])
                         # print()
-                        probs.append(prob * angle_prob[0])
+                        probs.append(prob[0] * angle_prob[0])
             self.Ns[s] = 0
             return min(max(probs), min(state.probs))
      
@@ -146,6 +143,9 @@ class MCTS():
                         
         state.probs.append(self.Ps[s][best_act])
         next_state = self.env.step(state, best_act)
+        if next_state.depth == state.depth:
+            print('Error: next_state.depth == state.depth')
+            print()
         v = self.search(next_state)
         
         if (s, best_act) in self.Qsa:
