@@ -1,5 +1,6 @@
 import cv2
 import numpy as np
+from models.ProNet2 import ProNet2
 from models.SimpleProNet import ProNet as SimpleProNet
 from models.ProNet import ProNet
 from src.data_helper import DataProcessor
@@ -17,7 +18,7 @@ def parse_args():
     parser.add_argument('--model-name', type=str, default='model_2_0.pt')
     parser.add_argument('--output-path', type=str, default='./output/recovered_images/')
     parser.add_argument('-f', '--file-name', type=str, default='sage_1.png')
-    parser.add_argument('-s', '--block-size', type=int, default=(32, 32))
+    parser.add_argument('-s', '--block-size', type=int, default=(64, 64))
     parser.add_argument('-d', '--block-dim', type=tuple_type, default=(4, 4))
     parser.add_argument('--image-size-out', type=int, default=(512, 512))   
     parser.add_argument('-a', '--algorithm', type=str, default='mcts')
@@ -31,8 +32,8 @@ def main():
     original_image = cv2.imread(args.image_path + args.file_name)
     
     state = State(original_image, args.block_size, args.block_dim)
-    model = SimpleProNet((2 * args.block_size[0], 2 * args.block_size[1]))
-    # model.load_checkpoint(2, 1358)
+    model = ProNet2((2 * args.block_size[0], 2 * args.block_size[1]))
+    model.load_checkpoint(0, 300)
     
     model.eval()
     

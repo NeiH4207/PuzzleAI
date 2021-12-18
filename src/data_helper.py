@@ -107,9 +107,6 @@ class DataHelper:
             'data': [],
             'target': []
         }
-        
-        dx = [0, 1, 0, -1]
-        dy = [1, 0, -1, 0]
         image = cv2.resize(image, IMG_SIZE, interpolation = cv2.INTER_AREA)
         # rotate image
         image = np.rot90(image, k=np.random.randint(0, 4))
@@ -123,58 +120,60 @@ class DataHelper:
             for j in range(block_dim[1]):
                 if lost_block_labels[i][j] == 1:
                     lost_positions.add((i, j))
+        lost_positions = list(lost_positions)
         
-        if len(list(lost_positions)) < block_dim[0] * block_dim[1] - 1:
-            for x, y in [(i, j) for i in range(block_dim[0]) for j in range(block_dim[1])]:
-                if (x, y) in lost_positions:
-                    continue
-                recovered_image_blocks = copy(dropped_blocks)
-                recovered_image = self.merge_blocks(recovered_image_blocks)
-                index = np.zeros(block_dim[0] * block_dim[1], dtype=np.int32)
-                index[x * block_dim[1] + y] = 1
-                data = [recovered_image, index]
-                # cv2.imwrite('output/sample.png', recovered_image)
-                new_dataset['data'].append(data)
-                new_dataset['target'].append((1, 1))
-                
-                angle = np.random.randint(1, 4)
-                rotated_block = np.rot90(recovered_image_blocks[x][y], angle)
-                recovered_image_blocks[x][y] = rotated_block
-                recovered_image = self.merge_blocks(recovered_image_blocks)
-                data = [recovered_image, index]
-                # cv2.imwrite('output/sample.png', recovered_image)
-                new_dataset['data'].append(data)
-                new_dataset['target'].append((1, 0))
-            
-        ''' false blocks '''
-        for x1, y1 in lost_positions:
-            for x2, y2 in lost_positions:
-                if x1 == x2 and y1 == y2:
-                    continue
-                chosen = False
-                for i in range(4):
-                    x, y = x1 + dx[i], y1 + dy[i]
-                    if x < 0 or x >= block_dim[0] or y < 0 or y >= block_dim[1]:
+        for x in range(block_dim[0] - 1):
+            for y in range(block_dim[1] - 1):
+                n_losts = np.sum(lost_block_labels[x:x+2,y:y+2])
+                if n_losts <= 2:
+                    if np.random.uniform() < 0.5:
                         continue
-                    if (x, y) not in lost_positions:
-                        chosen = True
-                        break
-                if not chosen:
-                    continue
-                angle = np.random.randint(0, 4)
-                recovered_image_blocks = copy(dropped_blocks)
-                recovered_image_blocks[x1][y1] = np.rot90(blocks[x2][y2], k=angle)
-                recovered_image = self.merge_blocks(recovered_image_blocks, mode='rgb')
-                index = np.zeros(block_dim[0] * block_dim[1], dtype=np.int32)
-                index[x1 * block_dim[1] + y1] = 1
-                data = [recovered_image, index]
-                # cv2.imwrite('output/sample.png', recovered_image)
-                new_dataset['data'].append(data)
-                new_dataset['target'].append((0, 0))
-        
+                    subblocks = copy(dropped_blocks[x:x+2,y:y+2])
+                    recovered_image = self.merge_blocks(subblocks)
+                    # cv2.imwrite('output/sample.png', recovered_image)
+                    for i in range(0, 2):
+                        for j in range(0, 2):
+                            _x = x + i
+                            _y = y + j
+                            if lost_block_labels[_x, _y] == 0:
+                                index = np.zeros(4, dtype=np.int8)
+                                index[i * 2 + j] = 1
+                                new_dataset['data'].append(recovered_image)
+                                new_dataset['target'].append((1, 1))
+                                _subblocks = copy(subblocks)
+                                _subblocks[i][j] = np.rot90(copy(subblocks[i][j]), k=np.random.randint(1, 4))
+                                _recovered_image = self.merge_blocks(_subblocks)
+                                new_dataset['data'].append(_recovered_image)
+                                new_dataset['target'].append((1, 0))
+                                # cv2.imwrite('output/sample.png', _recovered_image)
+                                
+                if n_losts >= 1 and n_losts <= 2 and len(lost_positions) > 1:
+                    if np.random.uniform() < 0.5:
+                        continue
+                    subblocks = copy(dropped_blocks[x:x+2,y:y+2])
+                    # recovered_image = self.merge_blocks(subblocks)
+                    # cv2.imwrite('output/sample.png', recovered_image)
+                    for i in range(0, 2):
+                        for j in range(0, 2):
+                            _x = x + i
+                            _y = y + j
+                            if lost_block_labels[_x, _y] == 1:
+                                index = np.zeros(4, dtype=np.int8)
+                                index[i * 2 + j] = 1
+                                rd_ids = lost_positions[np.random.randint(len(lost_positions))]
+                                while rd_ids[0] == _x and rd_ids[1] == _y:
+                                    rd_ids = lost_positions[np.random.randint(len(lost_positions))]
+                                rd_block = np.rot90(blocks[rd_ids[0]][rd_ids[1]], 
+                                                    k=np.random.randint(0, 4))
+                                cp_subblocks = copy(subblocks)
+                                cp_subblocks[i][j] = rd_block
+                                _recovered_image = self.merge_blocks(cp_subblocks)
+                                new_dataset['data'].append(_recovered_image)
+                                new_dataset['target'].append((0, 0))
+                                # cv2.imwrite('output/sample.png', _recovered_image)
         return new_dataset
     
-    def generate_data(self, dataset, block_dim, block_size, n_jobs=8):
+    def generate_data(self, dataset, block_dim, block_size, n_jobs=1):
         HEIGHT = block_size[0] * block_dim[0]
         WIDTH = block_size[1] * block_dim[1]
         IMG_SIZE = (HEIGHT, WIDTH)
@@ -187,7 +186,6 @@ class DataHelper:
         params = []
         for org_image in tqdm(dataset, desc='Generating data'):
             params.append((org_image, block_dim, block_size, IMG_SIZE))
-            
             if len(params) == n_jobs:
                 with Pool(n_jobs) as p:
                     results = p.starmap(self.generate_data_from_image, params)

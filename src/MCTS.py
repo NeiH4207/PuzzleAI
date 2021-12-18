@@ -108,23 +108,26 @@ class MCTS():
                     # get dropped_subblocks 2x2 from dropped_blocks
                     i, j = best_pos[x][y]
                     subblocks = deepcopy(state.dropped_blocks[i:i+2, j:j+2])
+                    index = np.zeros(4, dtype=np.int32)
+                    index[(x - i) * 2 + (y - j)] = 1
                     for angle in range(4):
                         block = np.rot90(state.blocks[_x][_y], k=angle)
                         subblocks[x - i][y - j] = block
                         recovered_image = DataProcessor.merge_blocks(subblocks)
                         recovered_image_ = DataProcessor.convert_image_to_three_dim(recovered_image)
-                        dropped_index_image = DataProcessor.merge_blocks(state.lost_index_img_blocks[i:i+2, j:j+2], mode='gray')
-                        prob, angle_prob = self.model.predict(recovered_image_, state.index_imgs[x-i][y-j], dropped_index_image)
+                        prob_1, prob_2 = self.model.predict(recovered_image_, index)
+                        # if prob_1 < 0.3:
+                        #     break
                         action = ((x, y), (_x, _y), angle)
-                        self.Ps[s][action] = prob[0]  # * 0.9 + 0.1 * ranks[x][y]
-                        # subblocks[x - i][y - j] = np.zeros(state.block_shape, dtype=np.uint8)
-                        # new_image = deepcopy(state.dropped_blocks)
-                        # new_image[x][y] = np.rot90(state.blocks[_x][_y], k=angle)
-                        # new_image_ = DataProcessor.merge_blocks(new_image)
-                        # cv2.imwrite('output/sample.png', new_image_)
-                        # print(prob[0], angle_prob[0])
-                        # print()
-                        probs.append(prob[0]) # * 0.9 + 0.1 * ranks[x][y])
+                        self.Ps[s][action] = prob_2  # * 0.9 + 0.1 * ranks[x][y]
+                        subblocks[x - i][y - j] = np.zeros(state.block_shape, dtype=np.uint8)
+                        new_image = deepcopy(state.dropped_blocks)
+                        new_image[x][y] = np.rot90(state.blocks[_x][_y], k=angle)
+                        new_image_ = DataProcessor.merge_blocks(new_image)
+                        cv2.imwrite('output/sample.png', new_image_)
+                        print( prob_1[0], prob_2[0])
+                        print()
+                        probs.append(prob_2[0]) # * 0.9 + 0.1 * ranks[x][y])
             self.Ns[s] = 0
             return min(max(probs), min(state.probs))
      

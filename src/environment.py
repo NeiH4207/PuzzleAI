@@ -29,21 +29,6 @@ class State:
             for j in range(block_dim[1]):
                 self.blocks[i][j] = cv2.resize(old_blocks[i][j], (block_size[0], block_size[1]), interpolation=cv2.INTER_AREA)
         self.dropped_blocks, self.lost_block_labels, self.masked = DataProcessor.drop_all_blocks(self.blocks)
-        self.lost_index_img_blocks = np.empty((block_dim[0], block_dim[1], block_size[0], block_size[1]), dtype=np.int8)
-
-        for x in range(block_dim[0]):
-            for y in range(block_dim[1]):
-                if self.lost_block_labels[x][y] == 0:
-                    self.lost_index_img_blocks[x][y] = np.zeros((block_size[0], block_size[1]), dtype=np.int8)
-                else:
-                    self.lost_index_img_blocks[x][y] = np.ones((block_size[0], block_size[1]), dtype=np.int8)
-                
-        self.index_imgs = np.zeros((2, 2, 2 * block_size[0], 2 * block_size[1]), dtype=np.int8)
-        
-        for i in range(2):
-            for j in range(2):
-                self.index_imgs[i][j][i * block_size[0]:(i + 1) * block_size[0], 
-                                    j * block_size[1]:(j + 1) * block_size[1]] = np.ones((block_size[0], block_size[1]), dtype=np.int8)
         self.set_string_presentation()
         self.num_blocks = len(self.blocks)
         self.depth = 0
@@ -71,8 +56,6 @@ class State:
         state.dropped_blocks = deepcopy(self.dropped_blocks)
         state.lost_block_labels = deepcopy(self.lost_block_labels)
         state.masked = deepcopy(self.masked)
-        state.lost_index_img_blocks = deepcopy(self.lost_index_img_blocks)
-        state.index_imgs = self.index_imgs
         state.num_blocks = self.num_blocks
         state.depth = self.depth
         state.max_depth = self.max_depth
@@ -120,10 +103,8 @@ class Environment():
         (x, y), (_x, _y), angle = action
         next_s = state.copy()
         next_s.dropped_blocks[x][y] = np.rot90(state.blocks[_x][_y], k=angle)
-        next_s.lost_block_labels[_x][_y] = 0
         next_s.masked[x][y] = 1
         next_s.actions.append(action)
-        next_s.lost_index_img_blocks[x][y] = np.zeros(state.block_size)
         next_s.inverse[x][y] = (_x, _y, angle)
         next_s.depth += 1
         next_s.last_action = (x, y)
