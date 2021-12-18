@@ -4,6 +4,7 @@ from src.data_helper import DataProcessor
 from configs import configs, img_configs
 from src.trainer import Trainer
 from models.ProNet import ProNet
+from models.ProNet2 import ProNet2
 import cv2
 
 def get_dataset(file_dir, file_name):
@@ -24,7 +25,7 @@ def main():
     configs['preprocess'] = True
     configs['num-dataset'] = 2
     file_dir = "input/data/images_data/"
-    trainer = Trainer(model=ProNet(img_configs['image-size']), lr=0.0001, loss='bce', optimizer='adas', batch_size=64, epochs=3)
+    trainer = Trainer(model=ProNet2(img_configs['image-size']), lr=0.0001, loss='bce', optimizer='adas', batch_size=64, epochs=3)
     # trainer.model.load_checkpoint(1, 616)
     for i in range(configs['num-dataset']):
         file_name = "image_data_batch_{}.bin".format(i)
@@ -37,7 +38,6 @@ def main():
             target_count[trainset['target'][i][0]] += 1
         print('class distribution: {}/{}'.format(target_count[0], target_count[1]))
         ''' print sample '''
-        print("Image shape: ", trainset['image_size'][0])
         _id = np.random.randint(0, len(trainset['data']))
         sample_img = trainset['data'][_id][0]
         print('target: {} / Angle: {}'.format(trainset['target'][_id][0], trainset['target'][_id][1]))

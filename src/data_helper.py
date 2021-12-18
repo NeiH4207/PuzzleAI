@@ -107,21 +107,11 @@ class DataHelper:
         
         new_dataset = {
             'data': [],
-            'target': [],
-            'block_dim': [],
-            'block_size': [],
-            'image_size': []
+            'target': []
         }
         
         dx = [0, 1, 0, -1]
         dy = [1, 0, -1, 0]
-        
-        index_imgs = np.zeros((block_dim[0], block_dim[1], HEIGHT, WIDTH), dtype=np.int8)
-        
-        for i in range(block_dim[0]):
-            for j in range(block_dim[1]):
-                index_imgs[i][j][i * block_size[0]:(i + 1) * block_size[0], 
-                                 j * block_size[1]:(j + 1) * block_size[1]] = np.ones((block_size[0], block_size[1]), dtype=np.int8)
         
         for org_image in tqdm(dataset, desc='Generating data'):
             # org_image = dataset[i]
@@ -134,14 +124,6 @@ class DataHelper:
         
             blocks = self.split_image_to_blocks(image, block_dim, outlier_rate=img_configs['outlier-rate'])
             dropped_blocks, lost_block_labels, _ = self.random_drop_blocks(blocks)
-            lost_index_img_blocks = np.empty((block_dim[0], block_dim[1], block_size[0], block_size[1]), dtype=np.int8)
-            
-            for x in range(block_dim[0]):
-                for y in range(block_dim[1]):
-                    if lost_block_labels[x][y] == 0:
-                        lost_index_img_blocks[x][y] = np.zeros((block_size[0], block_size[1]), dtype=np.int8)
-                    else:
-                        lost_index_img_blocks[x][y] = np.ones((block_size[0], block_size[1]), dtype=np.int8)
             
             lost_positions = set()
             for i in range(block_dim[0]):
@@ -157,31 +139,22 @@ class DataHelper:
                         continue
                     recovered_image_blocks = copy(dropped_blocks)
                     recovered_image = self.merge_blocks(recovered_image_blocks)
-                    cp_dropped_index_img_blocks = copy(lost_index_img_blocks)
-                    cp_dropped_index_img_blocks[x][y] = np.ones(block_size)
-                    dropped_index_image = self.merge_blocks(cp_dropped_index_img_blocks, mode='gray') 
-                    data = [recovered_image, index_imgs[x][y], dropped_index_image]
+                    index = np.zeros(block_dim[0] * block_dim[1], dtype=np.int32)
+                    index[x * block_dim[1] + y] = 1
+                    data = [recovered_image, index]
                     # cv2.imwrite('output/sample.png', recovered_image)
                     new_dataset['data'].append(data)
-                    new_dataset['target'].append((1, 0))
-                    new_dataset['block_dim'].append(block_dim)
-                    new_dataset['block_size'].append(block_size)
-                    new_dataset['image_size'].append(IMG_SIZE)
+                    new_dataset['target'].append((1, 1))
                     
                     angle = np.random.randint(1, 4)
                     rotated_block = np.rot90(recovered_image_blocks[x][y], angle)
                     recovered_image_blocks[x][y] = rotated_block
                     recovered_image = self.merge_blocks(recovered_image_blocks)
-                    data = [recovered_image, index_imgs[x][y], dropped_index_image]
+                    data = [recovered_image, index]
                     # cv2.imwrite('output/sample.png', recovered_image)
                     new_dataset['data'].append(data)
-                    new_dataset['target'].append((0, 4 - angle))
-                    new_dataset['block_dim'].append(block_dim)
-                    new_dataset['block_size'].append(block_shape)
-                    new_dataset['image_size'].append(IMG_SIZE)
+                    new_dataset['target'].append((1, 0))
                 
-                
-            dropped_index_image = self.merge_blocks(lost_index_img_blocks, mode='gray') 
             ''' false blocks '''
             for x1, y1 in lost_positions:
                 for x2, y2 in lost_positions:
@@ -201,13 +174,12 @@ class DataHelper:
                     recovered_image_blocks = copy(dropped_blocks)
                     recovered_image_blocks[x1][y1] = np.rot90(blocks[x2][y2], k=angle)
                     recovered_image = self.merge_blocks(recovered_image_blocks, mode='rgb')
-                    data = [recovered_image, index_imgs[x1][y1], dropped_index_image]
+                    index = np.zeros(block_dim[0] * block_dim[1], dtype=np.int32)
+                    index[x1 * block_dim[1] + y1] = 1
+                    data = [recovered_image, index]
                     # cv2.imwrite('output/sample.png', recovered_image)
                     new_dataset['data'].append(data)
-                    new_dataset['target'].append((0, -1))
-                    new_dataset['block_dim'].append(block_dim)
-                    new_dataset['block_size'].append(block_shape)
-                    new_dataset['image_size'].append(IMG_SIZE)
+                    new_dataset['target'].append((0, 0))
                     
         return new_dataset
     
@@ -236,17 +208,11 @@ class DataHelper:
             np.random.shuffle(test_dataset_indices)
         train_dataset = {
             'data': [data['data'][i] for i in train_dataset_indices],
-            'target': [data['target'][i] for i in train_dataset_indices],
-            'block_dim': [data['block_dim'][i] for i in train_dataset_indices],
-            'block_size': [data['block_size'][i] for i in train_dataset_indices],
-            'image_size': [data['image_size'][i] for i in train_dataset_indices]
+            'target': [data['target'][i] for i in train_dataset_indices]
         }
         test_dataset = {
             'data': [data['data'][i] for i in test_dataset_indices],
-            'target': [data['target'][i] for i in test_dataset_indices],
-            'block_dim': [data['block_dim'][i] for i in test_dataset_indices],
-            'block_size': [data['block_size'][i] for i in test_dataset_indices],
-            'image_size': [data['image_size'][i] for i in test_dataset_indices]
+            'target': [data['target'][i] for i in test_dataset_indices]
         }
         if saved:
             self.save_data_to_binary_file(train_dataset, file_dir + 'train_dataset.bin')

@@ -11,10 +11,6 @@ configs = {
     'epochs': 10,
     'learning-rate': 0.001,
     'loss': 'categorical_crossentropy',
-    'metrics': ['accuracy'],
-    'optimizer': 'adam',
-    'activation': 'relu',
-    'dropout': 0.5,
     'regularizer': 'l2',
     'regularizer-rate': 0.01,
 }
@@ -30,12 +26,12 @@ img_configs = {
     'image-normalize': True,
     'image-mean': [0.485, 0.456, 0.406],
     'image-std': [0.229, 0.224, 0.225],
-    'outlier-rate': 0.3,
+    'outlier-rate': 0.0,
 }
 
 model_configs = dotdict({
     'dropout': 0.7,
     'num_channels': 256,
     'save_dir': './trainned_models',
-    'save_name': 'model_2x2'
+    'save_name': 'model'
 })

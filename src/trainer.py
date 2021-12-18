@@ -34,13 +34,6 @@ class Trainer:
         self.valid_acc = []
         self.test_acc = []
 
-    def convert_one_hot_target(self, targets):
-        angles = np.zeros(4)
-        if targets[1] >= 0:
-            angles[targets[1]] = 1
-        new_target = np.concatenate(([targets[0]], angles), axis=0)
-        return new_target
-    
     def split_batch(self, dataset, batch_size, shuffle=True):
         """
         Split dataset into batches
@@ -52,7 +45,7 @@ class Trainer:
         if shuffle:
             indices = np.random.permutation(len(dataset['data']))
             data_set = [dataset['data'][i] for i in indices]
-            target_set = [self.convert_one_hot_target(dataset['target'][i]) for i in indices]
+            target_set = [dataset['target'][i] for i in indices]
         for i in range(0, len(data_set), batch_size):
             batches.append((data_set[i:i + batch_size], target_set[i:i + batch_size]))
         return batches
@@ -64,17 +57,15 @@ class Trainer:
             train_batches = self.split_batch(self.train_loader, self.batch_size)
             t = tqdm(train_batches, desc="Epoch {}".format(epoch))
             for batch_idx, (data, targets) in enumerate(t):
-                input_1, input_2, input_3 = [
+                input_1, input_2= [
                     [DataProcessor.convert_image_to_three_dim(dt[0]) for dt in data],
-                    [dt[1] for dt in data],
-                    [dt[2] for dt in data]
+                    [dt[1] for dt in data]
                 ]
                 input_1 = Variable(T.FloatTensor(np.array(input_1).astype(np.float64)).to(self.device))
                 input_2 = Variable(T.FloatTensor(np.array(input_2).astype(np.float64)).to(self.device))
-                input_3 = Variable(T.FloatTensor(np.array(input_3).astype(np.float64)).to(self.device))
                 targets = T.FloatTensor(np.array(targets).astype(np.float64)).to(self.device)
                 self.model.reset_grad()
-                output = self.model(input_1, input_2, input_3)
+                output = self.model(input_1, input_2)
                 output = T.cat(output, 1)
                 loss = self.model.loss(output, targets)
                 loss.backward()
@@ -112,28 +103,20 @@ class Trainer:
         soft_acc = 0
         with T.no_grad():
             t = tqdm(zip(self.test_loader['data'], self.test_loader['target']), desc="Testing")
-            for _iter, (data, _target) in enumerate(t):
-                cv2.imwrite('output/sample.png', data[0])
-                print()
-                print(_target)
-                input_1, input_2, input_3 = DataProcessor.convert_image_to_three_dim(data[0]), data[1], data[2]
-                target = [self.convert_one_hot_target(_target)]
+            for _iter, (data, target) in enumerate(t):
+                input_1, input_2 = DataProcessor.convert_image_to_three_dim(data[0]), data[1]
                 input_1 = T.FloatTensor(np.array(input_1).astype(np.float64)).to(self.device)
                 input_2 = T.FloatTensor(np.array(input_2).astype(np.float64)).to(self.device)
-                input_3 = T.FloatTensor(np.array(input_3).astype(np.float64)).to(self.device)
                 target = T.FloatTensor(np.array(target).astype(np.float64)).to(self.device)
-                output = self.model(input_1, input_2, input_3)
-                output = T.cat(output, 1)
+                output = self.model(input_1, input_2)
+                output = T.cat(output, 1).flatten()
                 loss = self.model.loss(output, target)
-                target_out = np.round(output.cpu().numpy()[0][0])
-                target_angle = np.argmax(output.cpu().numpy()[0][1:])
+                target_out = np.round(output.cpu().numpy()[0])
+                target_out_2 = np.round(output.cpu().numpy()[1])
                 test_loss += loss.item()
-                if target_out == _target[0]:
+                if target_out == target[0]:
                     soft_acc += 1
-                    if max(output.cpu().numpy()[0][1:]) > 0.5:
-                        if target_angle == _target[1]:
-                            correct += 1
-                    elif _target[1] == -1:
+                    if target_out_2 == target[1]:
                         correct += 1
                 if _iter % 10 == 0:
                     t.set_postfix(loss=test_loss/(1+_iter), acc=correct/(1+_iter), soft_acc=soft_acc/(1+_iter))
