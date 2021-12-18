@@ -10,7 +10,7 @@ from tqdm import tqdm
 class Trainer:
     def __init__(self, model, loss, optimizer, train_loader=None, test_loader=None,
                  device=T.device("cpu"), lr=0.001, epochs=1000, batch_size=64,
-                 print_every=1, save_every=100, save_dir="./trainned_models",
+                 print_every=1, save_every=500, save_dir="./trainned_models",
                  save_name="model.pt", verbose=True):
         self.model = model
         self.model.set_loss_function(loss)
