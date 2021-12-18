@@ -21,8 +21,8 @@ def parse_args():
     parser.add_argument('--output-path', type=str, default='./input/shuffle_images')
     parser.add_argument('-f', '--filename', type=str, default='natural_1.jpg')
     parser.add_argument('--file-name-out', type=str, default=None)
-    parser.add_argument('-bz', '--block-size', type=int, default=64)
-    parser.add_argument('-bd', '--block-dim', type=tuple_type, default=(3, 4))
+    parser.add_argument('-s', '--block-size', type=int, default=64)
+    parser.add_argument('-d', '--block-dim', type=tuple_type, default=(3, 4))
     parser.add_argument('--mode', type=str, default='rgb')
         
     args = parser.parse_args()

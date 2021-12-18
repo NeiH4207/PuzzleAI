@@ -175,6 +175,7 @@ class Environment():
                         if state.masked[new_x][new_y] == 0:
                             chosen_block_ids.add((new_x, new_y))
         ranks = np.zeros((state.block_dim[0], state.block_dim[1]), dtype=np.int8)
+        max_rank = 0
         for x, y in chosen_block_ids:
             counts = np.zeros((2, 2), dtype=np.int8)
             corner = (max(0, x - 1), max(0, y - 1))
@@ -184,15 +185,16 @@ class Environment():
                         np.sum(state.masked[i:i + 2, j:j + 2])
             mx = counts.max()
             best_pos = np.argwhere(counts==mx)
-            ranks[x][y] = np.exp(mx)
+            ranks[x][y] = mx
+            if mx > max_rank:
+                max_rank = mx
             best_pos = best_pos[np.random.randint(0, len(best_pos))]
             best_square[x][y] = (corner[0] + best_pos[0], corner[1] + best_pos[1]) 
         # print(ranks)
-        ranks = ranks / np.sum(ranks)
-        probs = [ranks[x][y] for x, y in chosen_block_ids]
         chosen_block_ids = list(chosen_block_ids)
-        ids = np.random.choice(range(len(chosen_block_ids)),
-                                            size=min(kmax, len(chosen_block_ids)), 
-                                            p=probs, replace=False)
-        chosen_block_ids = [chosen_block_ids[i] for i in ids]
-        return chosen_block_ids, best_square
+        final_block_ids = []
+        for (x, y) in chosen_block_ids:
+            if ranks[x][y] == max_rank:
+                final_block_ids.append((x, y))
+        final_block_ids = final_block_ids[:min(kmax, len(final_block_ids))]
+        return final_block_ids, best_square, ranks

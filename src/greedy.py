@@ -16,7 +16,7 @@ class Greedy():
             for j in range(state.block_dim[1]):
                 if state.lost_block_labels[i][j] == 1:
                     lost_positions.append((i, j))
-        valid_block_pos, best_pos = self.env.get_valid_block_pos(state, kmax=self.n_bests)
+        valid_block_pos, best_pos, ranks = self.env.get_valid_block_pos(state, kmax=self.n_bests)
         best_action = None
         best_prob = 0
         if self.verbose:
@@ -42,8 +42,8 @@ class Greedy():
                     # cv2.imwrite('output/sample.png', new_image_)
                     # print(prob[0], angle_prob[0])
                     # print()
-                    if prob  > best_prob:
-                        best_prob = prob
+                    if prob * ranks[x][y]  > best_prob:
+                        best_prob = prob  * ranks[x][y]
                         best_action = action
         if self.verbose:
             state.save_image()

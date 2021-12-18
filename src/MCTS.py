@@ -102,7 +102,7 @@ class MCTS():
             
             self.Ps[s] = {}
             
-            valid_block_pos, best_pos = self.env.get_valid_block_pos(state, kmax=self.n_bests)
+            valid_block_pos, best_pos, ranks = self.env.get_valid_block_pos(state, kmax=self.n_bests)
             for x, y in valid_block_pos:
                 for _x, _y in lost_positions:
                     # get dropped_subblocks 2x2 from dropped_blocks
@@ -116,7 +116,7 @@ class MCTS():
                         dropped_index_image = DataProcessor.merge_blocks(state.lost_index_img_blocks[i:i+2, j:j+2], mode='gray')
                         prob, angle_prob = self.model.predict(recovered_image_, state.index_imgs[x-i][y-j], dropped_index_image)
                         action = ((x, y), (_x, _y), angle)
-                        self.Ps[s][action] = prob[0] * angle_prob[0]
+                        self.Ps[s][action] = prob[0]  # * 0.9 + 0.1 * ranks[x][y]
                         # subblocks[x - i][y - j] = np.zeros(state.block_shape, dtype=np.uint8)
                         # new_image = deepcopy(state.dropped_blocks)
                         # new_image[x][y] = np.rot90(state.blocks[_x][_y], k=angle)
@@ -124,7 +124,7 @@ class MCTS():
                         # cv2.imwrite('output/sample.png', new_image_)
                         # print(prob[0], angle_prob[0])
                         # print()
-                        probs.append(prob[0] * angle_prob[0])
+                        probs.append(prob[0]) # * 0.9 + 0.1 * ranks[x][y])
             self.Ns[s] = 0
             return min(max(probs), min(state.probs))
      
