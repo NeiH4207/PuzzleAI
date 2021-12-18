@@ -119,7 +119,9 @@ class Trainer:
                     if target_out_2 == target[1]:
                         correct += 1
                 if _iter % 10 == 0:
-                    t.set_postfix(loss=test_loss/(1+_iter), acc=correct/(1+_iter), soft_acc=soft_acc/(1+_iter))
+                    t.set_postfix(loss=test_loss/(1+_iter), 
+                                  acc=correct/(1+_iter), 
+                                  soft_acc=soft_acc/(1+_iter))
         test_loss /= len(self.test_loader['data'])
         self.test_losses.append(test_loss)
         self.test_acc.append(correct / len(self.test_loader['data']))

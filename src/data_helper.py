@@ -3,8 +3,9 @@ import _pickle as cPickle
 import os
 import numpy as np
 import cv2
-from numpy.core.numeric import indices
-from numpy.random.mtrand import random
+from multiprocessing import Pool
+
+from torch.nn import parameter
 from configs import img_configs
 from copy import deepcopy as copy
 import pandas as pd
@@ -100,7 +101,80 @@ class DataHelper:
             dict = pickle.load(fo, encoding='bytes')
         return dict
     
-    def generate_data(self, dataset, block_dim, block_size, is_array=True):
+    def generate_data_from_image(self, image, block_dim, block_size, IMG_SIZE):
+    
+        new_dataset = {
+            'data': [],
+            'target': []
+        }
+        
+        dx = [0, 1, 0, -1]
+        dy = [1, 0, -1, 0]
+        image = cv2.resize(image, IMG_SIZE, interpolation = cv2.INTER_AREA)
+        # rotate image
+        image = np.rot90(image, k=np.random.randint(0, 4))
+        # cv2.imwrite('output/sample.png', image)
+    
+        blocks = self.split_image_to_blocks(image, block_dim, outlier_rate=img_configs['outlier-rate'])
+        dropped_blocks, lost_block_labels, _ = self.random_drop_blocks(blocks)
+        
+        lost_positions = set()
+        for i in range(block_dim[0]):
+            for j in range(block_dim[1]):
+                if lost_block_labels[i][j] == 1:
+                    lost_positions.add((i, j))
+        
+        if len(list(lost_positions)) < block_dim[0] * block_dim[1] - 1:
+            for x, y in [(i, j) for i in range(block_dim[0]) for j in range(block_dim[1])]:
+                if (x, y) in lost_positions:
+                    continue
+                recovered_image_blocks = copy(dropped_blocks)
+                recovered_image = self.merge_blocks(recovered_image_blocks)
+                index = np.zeros(block_dim[0] * block_dim[1], dtype=np.int32)
+                index[x * block_dim[1] + y] = 1
+                data = [recovered_image, index]
+                # cv2.imwrite('output/sample.png', recovered_image)
+                new_dataset['data'].append(data)
+                new_dataset['target'].append((1, 1))
+                
+                angle = np.random.randint(1, 4)
+                rotated_block = np.rot90(recovered_image_blocks[x][y], angle)
+                recovered_image_blocks[x][y] = rotated_block
+                recovered_image = self.merge_blocks(recovered_image_blocks)
+                data = [recovered_image, index]
+                # cv2.imwrite('output/sample.png', recovered_image)
+                new_dataset['data'].append(data)
+                new_dataset['target'].append((1, 0))
+            
+        ''' false blocks '''
+        for x1, y1 in lost_positions:
+            for x2, y2 in lost_positions:
+                if x1 == x2 and y1 == y2:
+                    continue
+                chosen = False
+                for i in range(4):
+                    x, y = x1 + dx[i], y1 + dy[i]
+                    if x < 0 or x >= block_dim[0] or y < 0 or y >= block_dim[1]:
+                        continue
+                    if (x, y) not in lost_positions:
+                        chosen = True
+                        break
+                if not chosen:
+                    continue
+                angle = np.random.randint(0, 4)
+                recovered_image_blocks = copy(dropped_blocks)
+                recovered_image_blocks[x1][y1] = np.rot90(blocks[x2][y2], k=angle)
+                recovered_image = self.merge_blocks(recovered_image_blocks, mode='rgb')
+                index = np.zeros(block_dim[0] * block_dim[1], dtype=np.int32)
+                index[x1 * block_dim[1] + y1] = 1
+                data = [recovered_image, index]
+                # cv2.imwrite('output/sample.png', recovered_image)
+                new_dataset['data'].append(data)
+                new_dataset['target'].append((0, 0))
+        
+        return new_dataset
+    
+    def generate_data(self, dataset, block_dim, block_size, n_jobs=8):
         HEIGHT = block_size[0] * block_dim[0]
         WIDTH = block_size[1] * block_dim[1]
         IMG_SIZE = (HEIGHT, WIDTH)
@@ -110,76 +184,17 @@ class DataHelper:
             'target': []
         }
         
-        dx = [0, 1, 0, -1]
-        dy = [1, 0, -1, 0]
-        
+        params = []
         for org_image in tqdm(dataset, desc='Generating data'):
-            # org_image = dataset[i]
-            if is_array:
-                org_image = self.convert_array_to_rgb_image(org_image, 32, 32)
-            org_image = cv2.resize(org_image, IMG_SIZE, interpolation = cv2.INTER_AREA)
-            # rotate image
-            image = np.rot90(org_image, k=np.random.randint(0, 4))
-            # cv2.imwrite('output/sample.png', image)
-        
-            blocks = self.split_image_to_blocks(image, block_dim, outlier_rate=img_configs['outlier-rate'])
-            dropped_blocks, lost_block_labels, _ = self.random_drop_blocks(blocks)
+            params.append((org_image, block_dim, block_size, IMG_SIZE))
             
-            lost_positions = set()
-            for i in range(block_dim[0]):
-                for j in range(block_dim[1]):
-                    if lost_block_labels[i][j] == 1:
-                        lost_positions.add((i, j))
-                        
-            block_shape = blocks[0][0].shape
-            
-            if len(list(lost_positions)) < block_dim[0] * block_dim[1] - 1:
-                for x, y in [(i, j) for i in range(block_dim[0]) for j in range(block_dim[1])]:
-                    if (x, y) in lost_positions:
-                        continue
-                    recovered_image_blocks = copy(dropped_blocks)
-                    recovered_image = self.merge_blocks(recovered_image_blocks)
-                    index = np.zeros(block_dim[0] * block_dim[1], dtype=np.int32)
-                    index[x * block_dim[1] + y] = 1
-                    data = [recovered_image, index]
-                    # cv2.imwrite('output/sample.png', recovered_image)
-                    new_dataset['data'].append(data)
-                    new_dataset['target'].append((1, 1))
-                    
-                    angle = np.random.randint(1, 4)
-                    rotated_block = np.rot90(recovered_image_blocks[x][y], angle)
-                    recovered_image_blocks[x][y] = rotated_block
-                    recovered_image = self.merge_blocks(recovered_image_blocks)
-                    data = [recovered_image, index]
-                    # cv2.imwrite('output/sample.png', recovered_image)
-                    new_dataset['data'].append(data)
-                    new_dataset['target'].append((1, 0))
-                
-            ''' false blocks '''
-            for x1, y1 in lost_positions:
-                for x2, y2 in lost_positions:
-                    if x1 == x2 and y1 == y2:
-                        continue
-                    chosen = False
-                    for i in range(4):
-                        x, y = x1 + dx[i], y1 + dy[i]
-                        if x < 0 or x >= block_dim[0] or y < 0 or y >= block_dim[1]:
-                            continue
-                        if (x, y) not in lost_positions:
-                            chosen = True
-                            break
-                    if not chosen:
-                        continue
-                    angle = np.random.randint(0, 4)
-                    recovered_image_blocks = copy(dropped_blocks)
-                    recovered_image_blocks[x1][y1] = np.rot90(blocks[x2][y2], k=angle)
-                    recovered_image = self.merge_blocks(recovered_image_blocks, mode='rgb')
-                    index = np.zeros(block_dim[0] * block_dim[1], dtype=np.int32)
-                    index[x1 * block_dim[1] + y1] = 1
-                    data = [recovered_image, index]
-                    # cv2.imwrite('output/sample.png', recovered_image)
-                    new_dataset['data'].append(data)
-                    new_dataset['target'].append((0, 0))
+            if len(params) == n_jobs:
+                with Pool(n_jobs) as p:
+                    results = p.starmap(self.generate_data_from_image, params)
+                for result in results:
+                    new_dataset['data'].extend(result['data'])
+                    new_dataset['target'].extend(result['target'])
+                params = []
                     
         return new_dataset
     
