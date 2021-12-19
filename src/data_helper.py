@@ -138,12 +138,12 @@ class DataHelper:
                             if lost_block_labels[_x, _y] == 0:
                                 index = np.zeros(4, dtype=np.int8)
                                 index[i * 2 + j] = 1
-                                new_dataset['data'].append(recovered_image)
+                                new_dataset['data'].append([recovered_image, index])
                                 new_dataset['target'].append((1, 1))
                                 _subblocks = copy(subblocks)
                                 _subblocks[i][j] = np.rot90(copy(subblocks[i][j]), k=np.random.randint(1, 4))
                                 _recovered_image = self.merge_blocks(_subblocks)
-                                new_dataset['data'].append(_recovered_image)
+                                new_dataset['data'].append([_recovered_image, index])
                                 new_dataset['target'].append((1, 0))
                                 # cv2.imwrite('output/sample.png', _recovered_image)
                                 
@@ -168,7 +168,7 @@ class DataHelper:
                                 cp_subblocks = copy(subblocks)
                                 cp_subblocks[i][j] = rd_block
                                 _recovered_image = self.merge_blocks(cp_subblocks)
-                                new_dataset['data'].append(_recovered_image)
+                                new_dataset['data'].append([_recovered_image, index])
                                 new_dataset['target'].append((0, 0))
                                 # cv2.imwrite('output/sample.png', _recovered_image)
         return new_dataset
