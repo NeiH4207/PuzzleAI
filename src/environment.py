@@ -105,6 +105,7 @@ class Environment():
         next_s.dropped_blocks[x][y] = np.rot90(state.blocks[_x][_y], k=angle)
         next_s.masked[x][y] = 1
         next_s.actions.append(action)
+        next_s.lost_block_labels[_x][_y] = 0
         next_s.inverse[x][y] = (_x, _y, angle)
         next_s.depth += 1
         next_s.last_action = (x, y)

@@ -33,7 +33,7 @@ def main():
     
     state = State(original_image, args.block_size, args.block_dim)
     model = ProNet2((2 * args.block_size[0], 2 * args.block_size[1]))
-    model.load_checkpoint(0, 300)
+    model.load_checkpoint(1, 1000)
     
     model.eval()
     

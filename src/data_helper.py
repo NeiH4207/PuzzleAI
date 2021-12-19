@@ -4,6 +4,7 @@ import os
 import numpy as np
 import cv2
 from multiprocessing import Pool
+import psutil
 
 from torch.nn import parameter
 from configs import img_configs
@@ -107,6 +108,10 @@ class DataHelper:
             'data': [],
             'target': []
         }
+        
+        if psutil.cpu_percent() > 50:
+            return new_dataset
+        
         image = cv2.resize(image, IMG_SIZE, interpolation = cv2.INTER_AREA)
         # rotate image
         image = np.rot90(image, k=np.random.randint(0, 4))
@@ -149,8 +154,8 @@ class DataHelper:
                                     # cv2.imwrite('output/sample.png', _recovered_image)
                                 
                 if n_losts >= 1 and n_losts <= 3 and len(lost_positions) > 1:
-                    # if np.random.uniform() < 0.5:
-                    #     continue
+                    if np.random.uniform() < 0.65:
+                        continue
                     subblocks = dropped_blocks[x:x+2,y:y+2]
                     # recovered_image = self.merge_blocks(subblocks)
                     # cv2.imwrite('output/sample.png', recovered_image)
@@ -158,6 +163,9 @@ class DataHelper:
                         for j in range(0, 2):
                             _x = x + i
                             _y = y + j
+                            if n_losts == 1:
+                                if lost_block_labels[_x][_y] * lost_block_labels[x + (i + 1)% 2, y + (j + 1)% 2] == 1:
+                                    continue
                             if lost_block_labels[_x, _y] == 1:
                                 index = np.zeros(4, dtype=np.int8)
                                 index[i * 2 + j] = 1
@@ -183,9 +191,11 @@ class DataHelper:
             'data': [],
             'target': []
         }
+        counts = [0, 0, 0]
         
         params = []
-        for org_image in tqdm(dataset, desc='Generating data'):
+        t = tqdm(dataset, desc='Generating data')
+        for org_image in t:
             params.append((org_image, block_dim, block_size, IMG_SIZE))
             if len(params) == n_jobs:
                 with Pool(n_jobs) as p:
@@ -193,7 +203,10 @@ class DataHelper:
                 for result in results:
                     new_dataset['data'].extend(result['data'])
                     new_dataset['target'].extend(result['target'])
+                    for r in result['target']:
+                        counts[r[0] + r[1]] += 1
                 params = []
+                t.set_postfix(size="{}/{}/{}".format(counts[0], counts[1], counts[2]))
                     
         return new_dataset
     
@@ -378,7 +391,7 @@ class DataHelper:
         :return: dropped blocks
         """
         if prob is None:
-            prob = np.random.uniform()
+            prob = np.clip(np.random.uniform(), 0.3, 0.7)
         n_rows, n_cols = blocks.shape[0], blocks.shape[1]
         n_steps = prob * n_rows * n_cols
         masked = np.zeros((n_rows, n_cols), dtype=np.uint8)
