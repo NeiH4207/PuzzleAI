@@ -5,13 +5,13 @@ import numpy as np
 import cv2
 from multiprocessing import Pool
 import psutil
-
 from torch.nn import parameter
 from configs import img_configs
 from copy import deepcopy as copy
 import pandas as pd
 import urllib
 from tqdm import tqdm
+from random import random, randint, SystemRandom
 
 class DataHelper:
     def __init__(self):
@@ -133,7 +133,7 @@ class DataHelper:
             for y in range(block_dim[1] - 1):
                 n_losts = np.sum(lost_block_labels[x:x+2,y:y+2])
                 if n_losts <= 2:
-                    if np.random.uniform() < 0.25:
+                    if SystemRandom().uniform(0, 1) < 0.25:
                         subblocks = dropped_blocks[x:x+2,y:y+2]
                         recovered_image = self.merge_blocks(subblocks)
                         # cv2.imwrite('output/sample.png', recovered_image)
@@ -154,7 +154,7 @@ class DataHelper:
                                     # cv2.imwrite('output/sample.png', _recovered_image)
                                 
                 if n_losts >= 1 and n_losts <= 3 and len(lost_positions) > 1:
-                    if np.random.uniform() < 0.65:
+                    if SystemRandom().uniform(0, 1) < 0.35:
                         continue
                     subblocks = dropped_blocks[x:x+2,y:y+2]
                     # recovered_image = self.merge_blocks(subblocks)
@@ -163,17 +163,17 @@ class DataHelper:
                         for j in range(0, 2):
                             _x = x + i
                             _y = y + j
-                            if n_losts == 1:
-                                if lost_block_labels[_x][_y] * lost_block_labels[x + (i + 1)% 2, y + (j + 1)% 2] == 1:
+                            if n_losts == 3:
+                                if lost_block_labels[_x + (i + 1)% 2, _y + (j + 1)% 2] == 0:
                                     continue
                             if lost_block_labels[_x, _y] == 1:
                                 index = np.zeros(4, dtype=np.int8)
                                 index[i * 2 + j] = 1
-                                rd_ids = lost_positions[np.random.randint(len(lost_positions))]
+                                rd_ids = lost_positions[SystemRandom().randint(0, len(lost_positions) - 1)]
                                 while rd_ids[0] == _x and rd_ids[1] == _y:
-                                    rd_ids = lost_positions[np.random.randint(len(lost_positions))]
+                                    rd_ids = lost_positions[SystemRandom().randint(0, len(lost_positions) - 1)]
                                 rd_block = np.rot90(blocks[rd_ids[0]][rd_ids[1]], 
-                                                    k=np.random.randint(0, 4))
+                                                    k=SystemRandom().randint(0, 3))
                                 cp_subblocks = copy(subblocks)
                                 cp_subblocks[i][j] = rd_block
                                 _recovered_image = self.merge_blocks(cp_subblocks)
@@ -391,7 +391,7 @@ class DataHelper:
         :return: dropped blocks
         """
         if prob is None:
-            prob = np.clip(np.random.uniform(), 0.3, 0.7)
+            prob = SystemRandom().uniform(0, 1) * 0.4 + 0.3
         n_rows, n_cols = blocks.shape[0], blocks.shape[1]
         n_steps = prob * n_rows * n_cols
         masked = np.zeros((n_rows, n_cols), dtype=np.uint8)
@@ -402,7 +402,7 @@ class DataHelper:
         dropped_blocks = np.empty(blocks.shape, dtype=np.ndarray)
         lost_block_labels = np.zeros((n_rows, n_cols))
         next_position = set()
-        x, y = np.random.randint(0, n_rows), np.random.randint(0, n_cols)
+        x, y = SystemRandom().randint(0, n_rows - 1), SystemRandom().randint(0, n_cols - 1)
         masked[x][y] = 1
         for i in range(4):
             _x, _y = x + dx[i], y + dy[i]
@@ -410,7 +410,7 @@ class DataHelper:
                 next_position.add((_x, _y))
         
         for i in range(int(n_steps)):
-            next_pos = list(next_position)[np.random.choice(len(next_position))]
+            next_pos = list(next_position)[SystemRandom().randint(0, len(next_position) - 1)]
             x = next_pos[0]
             y = next_pos[1]
             masked[x][y] = 1
