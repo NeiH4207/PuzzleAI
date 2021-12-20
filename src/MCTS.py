@@ -116,17 +116,17 @@ class MCTS():
                         recovered_image = DataProcessor.merge_blocks(subblocks)
                         recovered_image_ = DataProcessor.convert_image_to_three_dim(recovered_image)
                         prob_1, prob_2 = self.model.predict(recovered_image_, index)
-                        # if prob_1 < 0.3:
-                        #     break
                         action = ((x, y), (_x, _y), angle)
-                        self.Ps[s][action] = prob_2[0]  # * 0.9 + 0.1 * ranks[x][y]
-                        subblocks[x - i][y - j] = np.zeros(state.block_shape, dtype=np.uint8)
-                        new_image = deepcopy(state.dropped_blocks)
-                        new_image[x][y] = np.rot90(state.blocks[_x][_y], k=angle)
-                        new_image_ = DataProcessor.merge_blocks(new_image)
-                        cv2.imwrite('output/sample.png', new_image_)
-                        print(action,  prob_1[0], prob_2[0])
+                        self.Ps[s][action] = prob_2[0]
+                        # subblocks[x - i][y - j] = np.zeros(state.block_shape, dtype=np.uint8)
+                        # new_image = deepcopy(state.dropped_blocks)
+                        # new_image[x][y] = np.rot90(state.blocks[_x][_y], k=angle)
+                        # new_image_ = DataProcessor.merge_blocks(new_image)
+                        # cv2.imwrite('output/sample.png', new_image_)
+                        # print(action,  prob_1[0], prob_2[0])
                         probs.append(prob_2[0]) # * 0.9 + 0.1 * ranks[x][y])
+                        if prob_1 < 0.2:
+                            break
             self.Ns[s] = 0
             return min(max(probs), min(state.probs))
      

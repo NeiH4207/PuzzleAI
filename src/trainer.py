@@ -66,8 +66,7 @@ class Trainer:
                 targets = T.FloatTensor(np.array(targets).astype(np.float64)).to(self.device)
                 self.model.reset_grad()
                 output = self.model(input_1, input_2)
-                output = T.cat(output, 1)
-                loss = self.model.loss(output, targets)
+                loss = self.model.loss(output.flatten(), targets)
                 loss.backward()
                 self.train_losses.append(loss.item())
                 self.model.step()
@@ -97,34 +96,23 @@ class Trainer:
     
         
     def test(self):
+        if len(self.test_loader['data']) == 0:
+            print('Skipping test')
         self.model.eval()
-        test_loss = 0
         correct = 0
-        soft_acc = 0
         with T.no_grad():
             t = tqdm(zip(self.test_loader['data'], self.test_loader['target']), desc="Testing")
             for _iter, (data, target) in enumerate(t):
                 input_1, input_2 = DataProcessor.convert_image_to_three_dim(data[0]), data[1]
-                input_1 = T.FloatTensor(np.array(input_1).astype(np.float64)).to(self.device)
-                input_2 = T.FloatTensor(np.array(input_2).astype(np.float64)).to(self.device)
-                target = T.FloatTensor(np.array(target).astype(np.float64)).to(self.device)
+                input_1 = T.FloatTensor(np.array(input_1).astype(np.float64)).to(self.device).detach()
+                input_2 = T.FloatTensor(np.array(input_2).astype(np.float64)).to(self.device).detach()
                 output = self.model(input_1, input_2)
-                output = T.cat(output, 1).flatten()
-                loss = self.model.loss(output, target)
-                target_out = np.round(output.cpu().numpy()[0])
-                target_out_2 = np.round(output.cpu().numpy()[1])
-                test_loss += loss.item()
-                if target_out == target[0]:
-                    soft_acc += 1
-                    if target_out_2 == target[1]:
-                        correct += 1
+                target_out = output.cpu().numpy()[0]
+                if np.abs((target_out - target)) < 0.3:
+                    correct += 1
                 if _iter % 10 == 0:
-                    t.set_postfix(loss=test_loss/(1+_iter), 
-                                  acc=correct/(1+_iter), 
-                                  soft_acc=soft_acc/(1+_iter))
-        test_loss /= len(self.test_loader['data'])
-        self.test_losses.append(test_loss)
+                    t.set_postfix(acc=correct/(1+_iter))
         self.test_acc.append(correct / len(self.test_loader['data']))
-        print('\nTest set: Average loss: {:.4f}, Accuracy: {}/{} ({:.0f}%)\n'.format(
-            test_loss, correct, len(self.test_loader['data']),
+        print('\nTest set: Accuracy: {}/{} ({:.0f}%)\n'.format(
+            correct, len(self.test_loader['data']),
             100. * correct / len(self.test_loader['data'])))

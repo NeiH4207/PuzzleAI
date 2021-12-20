@@ -145,12 +145,14 @@ class DataHelper:
                                     index = np.zeros(4, dtype=np.int8)
                                     index[i * 2 + j] = 1
                                     new_dataset['data'].append([recovered_image, index])
-                                    new_dataset['target'].append((1, 1))
+                                    new_dataset['target'].append(1)
+                                    if SystemRandom().uniform(0, 1) < 0.5:
+                                        continue
                                     _subblocks = copy(subblocks)
                                     _subblocks[i][j] = np.rot90(copy(subblocks[i][j]), k=np.random.randint(1, 4))
                                     _recovered_image = self.merge_blocks(_subblocks)
                                     new_dataset['data'].append([_recovered_image, index])
-                                    new_dataset['target'].append((1, 0))
+                                    new_dataset['target'].append(0)
                                     # cv2.imwrite('output/sample.png', _recovered_image)
                                 
                 if n_losts >= 1 and n_losts <= 3 and len(lost_positions) > 1:
@@ -178,7 +180,7 @@ class DataHelper:
                                 cp_subblocks[i][j] = rd_block
                                 _recovered_image = self.merge_blocks(cp_subblocks)
                                 new_dataset['data'].append([_recovered_image, index])
-                                new_dataset['target'].append((0, 0))
+                                new_dataset['target'].append(0)
                                 # cv2.imwrite('output/sample.png', _recovered_image)
         return new_dataset
     
@@ -191,7 +193,7 @@ class DataHelper:
             'data': [],
             'target': []
         }
-        counts = [0, 0, 0]
+        counts = [0, 0]
         
         params = []
         t = tqdm(dataset, desc='Generating data')
@@ -204,9 +206,9 @@ class DataHelper:
                     new_dataset['data'].extend(result['data'])
                     new_dataset['target'].extend(result['target'])
                     for r in result['target']:
-                        counts[r[0] + r[1]] += 1
+                        counts[r] += 1
                 params = []
-                t.set_postfix(size="{}/{}/{}".format(counts[0], counts[1], counts[2]))
+                t.set_postfix(size="{}/{}".format(counts[0], counts[1]))
                     
         return new_dataset
     

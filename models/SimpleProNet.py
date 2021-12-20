@@ -77,24 +77,19 @@ class ProNet(nn.Module):
         if self.device == 'cuda':
             print('Using GPU')
         self.input_shape = input_shape
-        self.conv1 = nn.Conv2d(3, model_configs.num_channels>>2, 3, stride=1).to(self.device)
-        self.conv2 = nn.Conv2d(model_configs.num_channels>>2, model_configs.num_channels, 3, stride=1).to(self.device)
+        self.conv1 = nn.Conv2d(3, model_configs.num_channels>>4, 3, stride=1).to(self.device)
+        self.conv2 = nn.Conv2d(model_configs.num_channels>>4, model_configs.num_channels>>2, 3, stride=1).to(self.device)
         self.conv3 = nn.Conv2d(model_configs.num_channels>>2, model_configs.num_channels, 3, stride=1).to(self.device)
         
-        self.conv4 = nn.Conv2d(2, model_configs.num_channels>>4, 3, stride=2).to(self.device)
-        self.conv5 = nn.Conv2d(model_configs.num_channels>>4, model_configs.num_channels>>4, 3, stride=1).to(self.device)
-        
-        self.bn1 = nn.BatchNorm2d(model_configs.num_channels>>2).to(self.device)
-        self.bn2 = nn.BatchNorm2d(model_configs.num_channels).to(self.device)
+        self.bn1 = nn.BatchNorm2d(model_configs.num_channels>>4).to(self.device)
+        self.bn2 = nn.BatchNorm2d(model_configs.num_channels>>2).to(self.device)
         self.bn3 = nn.BatchNorm2d(model_configs.num_channels).to(self.device)
-        self.bn4 = nn.BatchNorm2d(model_configs.num_channels>>4).to(self.device)
-        self.bn5 = nn.BatchNorm2d(model_configs.num_channels>>4).to(self.device)
         
         self.avg_pool = nn.AvgPool2d(2).to(self.device)  
         self.max_pool = nn.MaxPool2d(2).to(self.device)
         self.resnet = ResNet(ResidualBlock, [2, 2, 2]).to(self.device)  
         
-        self.fc1 = nn.Linear(1024 + 576, 512).to(self.device)
+        self.fc1 = nn.Linear(1024 + 4, 512).to(self.device)
         self.fc_bn1 = nn.BatchNorm1d(512).to(self.device)
 
         self.fc2 = nn.Linear(512, 256).to(self.device)
@@ -103,15 +98,18 @@ class ProNet(nn.Module):
         self.fc3 = nn.Linear(256, 128).to(self.device)
         self.fc_bn3 = nn.BatchNorm1d(128).to(self.device)
         
-        self.fc4 = nn.Linear(128, num_classes).to(self.device)
+        self.fc4 = nn.Linear(128, 64).to(self.device)
         
-        self.fc5 = nn.Linear(512, 256).to(self.device)
-        self.fc_bn5 = nn.BatchNorm1d(256).to(self.device)
+        self.fc5 = nn.Linear(64, num_classes).to(self.device)
+        self.fc_bn5 = nn.BatchNorm1d(64).to(self.device)
     
         self.fc6 = nn.Linear(256, 128).to(self.device)
         self.fc_bn6 = nn.BatchNorm1d(128).to(self.device)
         
-        self.fc7 = nn.Linear(128, 4).to(self.device)    
+        self.fc7 = nn.Linear(128, 64).to(self.device)    
+        self.fc_bn7 = nn.BatchNorm1d(64).to(self.device)
+        
+        self.fc8 = nn.Linear(64, 1).to(self.device)
         
         self.train_losses = []
         
@@ -154,41 +152,32 @@ class ProNet(nn.Module):
     def step(self):
         self.optimizer.step()
     
-    def forward(self, x1, x2, x3):
+    def forward(self, x1, x2):
         # forward color features                                     
         x1 = x1.view(-1, 3, self.input_shape[0], self.input_shape[1])  
-        x2 = x2.view(-1, 1, self.input_shape[0], self.input_shape[1])
-        x3 = x3.view(-1, 1, self.input_shape[0], self.input_shape[1])
-        xt = torch.cat((x2, x3), 1)
+        x2 = x2.view(-1, 4)
         
         x1 = self.max_pool(F.relu(self.bn1(self.conv1(x1))))  
-        x1 = self.avg_pool(F.relu(self.bn2(self.conv2(x1))))
-                               
-        x1 = F.relu(self.resnet(x1))        
-        dim = (x1.shape[1] * x1.shape[2] * x1.shape[3])
-        x1 = x1.view(-1, dim)           
+        x1 = self.max_pool(F.relu(self.bn2(self.conv2(x1))))
+        x1 = self.avg_pool(F.relu(self.bn3(self.conv3(x1))))
+        x1 = F.relu(self.resnet(x1))       
+        x1 = x1.view(-1, x1.shape[1] * x1.shape[2] * x1.shape[3])           
         
-        xt = self.max_pool(F.relu(self.bn4(self.conv4(xt))))                    
-        xt = self.avg_pool(F.relu(self.bn5(self.conv5(xt)))) 
-        dim_2 = (xt.shape[1] * xt.shape[2] * xt.shape[3])
-        xt = xt.view(-1, dim_2)   
-        x = torch.cat((x1, xt), 1)                               
+        x = torch.cat((x1, x2), 1)                               
         x = F.dropout(F.relu(self.fc_bn1(self.fc1(x))), p=model_configs.dropout, training=self.training)
         x = F.dropout(F.relu(self.fc_bn2(self.fc2(x))), p=model_configs.dropout, training=self.training)
-        out = F.relu(self.fc_bn3(self.fc3(x)))
-        out = self.fc4(out)               
         
-        out_2 = F.dropout(F.relu(self.fc_bn6(self.fc6(x))), p=model_configs.dropout, training=self.training)
-        out_2 = self.fc7(out_2)
+        out = F.relu(self.fc_bn3(self.fc3(x)))
+        out = self.fc4(out)  
+        out = self.fc5(out)             
          
-        return torch.sigmoid(out), torch.softmax(out_2, dim=1)
+        return torch.sigmoid(out)
     
-    def predict(self, input_1, input_2, input_3):
+    def predict(self, input_1, input_2):
         input_1 = torch.FloatTensor(input_1).float().to(self.device)
         input_2 = torch.FloatTensor(input_2).float().to(self.device)
-        input_3 = torch.FloatTensor(input_3).float().to(self.device)
-        output, angle = self.forward(input_1, input_2, input_3)
-        return output.cpu().data.numpy()[0], angle.cpu().data.numpy()[0]
+        output, output_2 = self.forward(input_1, input_2)
+        return output.cpu().data.numpy()[0], output_2.cpu().data.numpy()[0]
           
     def load_checkpoint(self, epoch, batch_idx):
         checkpoint = torch.load("{}/{}_{}_{}.pt".format(model_configs.save_dir, model_configs.save_name, epoch, batch_idx), map_location=self.device)
