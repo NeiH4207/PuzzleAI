@@ -65,7 +65,7 @@ class Trainer:
                 ]
                 input_1 = Variable(T.FloatTensor(np.array(input_1).astype(np.float64)).to(self.device), requires_grad=True)
                 input_2 = Variable(T.FloatTensor(np.array(input_2).astype(np.float64)).to(self.device), requires_grad=True)
-                targets = T.FloatTensor(np.array(targets).astype(np.float64), requires_grad=True).to(self.device)
+                targets = T.FloatTensor(np.array(targets).astype(np.float64)).to(self.device)
                 self.model.reset_grad()
                 output = self.model(input_1, input_2)
                 loss = self.model.loss(output.flatten(), targets)
@@ -102,11 +102,8 @@ class Trainer:
             t = tqdm(zip(self.test_loader['data'], self.test_loader['target']), desc="Testing")
             for _iter, (data, target) in enumerate(t):
                 input_1, input_2 = DataProcessor.convert_image_to_three_dim(data[0]), data[1]
-                input_1 = T.FloatTensor(np.array(input_1).astype(np.float64)).to(self.device).detach()
-                input_2 = T.FloatTensor(np.array(input_2).astype(np.float64)).to(self.device).detach()
-                output = self.model(input_1, input_2)
-                target_out = output.cpu().numpy()[0]
-                if np.abs((target_out - target)) < 0.3:
+                output = self.model.predict(input_1, input_2)
+                if np.abs((output - target)) < 0.3:
                     correct += 1
                 if _iter % 10 == 0:
                     t.set_postfix(acc=correct/(1+_iter))
