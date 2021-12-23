@@ -1,4 +1,5 @@
 from copy import deepcopy
+import random
 import cv2
 
 import numpy as np
@@ -126,7 +127,7 @@ class Environment():
                 continue
             next_block_ids.append(new_block_id)
     
-    def get_valid_block_pos(self, state, kmax=4):
+    def get_valid_block_pos(self, state, kmax=4, last_state=True):
         """
         Returns a list of actions.
         """
@@ -134,16 +135,33 @@ class Environment():
         dy = [1, 0, -1, 0]
         chosen_block_ids = set()
         best_square = np.zeros((state.block_dim[0], state.block_dim[1], 2), dtype=np.int8)
-        for i in range(4):
-            new_x = state.last_action[0] + dx[i]
-            new_y = state.last_action[1] + dy[i]
-            if new_x < 0 or new_x >= state.block_dim[0] \
-                or new_y < 0 or new_y >= state.block_dim[1]:
-                continue
-            if state.masked[new_x][new_y] == 0:
-                chosen_block_ids.add((new_x, new_y))
         
-        if len(chosen_block_ids) == 0:
+        if last_state:
+            old_x, old_y = state.last_action
+            for i in range(4):
+                new_x = old_x + dx[i]
+                new_y = old_y + dy[i]
+                if new_x < 0 or new_x >= state.block_dim[0] \
+                    or new_y < 0 or new_y >= state.block_dim[1]:
+                    continue
+                if state.masked[new_x][new_y] == 0:
+                    chosen_block_ids.add((new_x, new_y))
+            
+            if len(chosen_block_ids) == 0:
+                for x in range(state.block_dim[0]):
+                    for y in range(state.block_dim[1]):
+                        if state.masked[x][y] == 0:
+                            continue
+                        for i in range(4):
+                            new_x = x + dx[i]
+                            new_y = y + dy[i]
+                            if new_x < 0 or new_x >= state.block_dim[0] \
+                                or new_y < 0 or new_y >= state.block_dim[1]:
+                                continue
+                            if state.masked[new_x][new_y] == 0:
+                                chosen_block_ids.add((new_x, new_y))
+        else:
+            # take random action
             for x in range(state.block_dim[0]):
                 for y in range(state.block_dim[1]):
                     if state.masked[x][y] == 0:
@@ -156,6 +174,7 @@ class Environment():
                             continue
                         if state.masked[new_x][new_y] == 0:
                             chosen_block_ids.add((new_x, new_y))
+        
         ranks = np.zeros((state.block_dim[0], state.block_dim[1]), dtype=np.int8)
         max_rank = 0
         for x, y in chosen_block_ids:

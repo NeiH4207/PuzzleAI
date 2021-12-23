@@ -10,7 +10,8 @@ from tqdm import tqdm
 class Trainer:
     def __init__(self, model, loss, optimizer, train_loader=None, test_loader=None,
                  device=T.device("cpu"), lr=0.001, epochs=1000, batch_size=64,
-                 print_every=1, save_every=500, save_dir="./trainned_models",
+                 n_repeats = 2, print_every=1, save_every=500, 
+                 save_dir="./trainned_models",
                  save_name="model.pt", verbose=True):
         self.model = model
         self.model.set_loss_function(loss)
@@ -20,6 +21,7 @@ class Trainer:
         self.device = device
         self.epochs = epochs
         self.batch_size = batch_size
+        self.n_repeats = n_repeats
         self.print_every = print_every
         self.save_every = save_every
         self.save_dir = save_dir
@@ -53,17 +55,17 @@ class Trainer:
     def train(self):
         self.model.to(self.device)
         self.model.train()
-        for epoch in range(self.epochs):
+        for iter in range(self.n_repeats):
             train_batches = self.split_batch(self.train_loader, self.batch_size)
-            t = tqdm(train_batches, desc="Epoch {}".format(epoch))
+            t = tqdm(train_batches, desc="Iter {}".format(iter))
             for batch_idx, (data, targets) in enumerate(t):
                 input_1, input_2= [
                     [DataProcessor.convert_image_to_three_dim(dt[0]) for dt in data],
                     [dt[1] for dt in data]
                 ]
-                input_1 = Variable(T.FloatTensor(np.array(input_1).astype(np.float64)).to(self.device))
-                input_2 = Variable(T.FloatTensor(np.array(input_2).astype(np.float64)).to(self.device))
-                targets = T.FloatTensor(np.array(targets).astype(np.float64)).to(self.device)
+                input_1 = Variable(T.FloatTensor(np.array(input_1).astype(np.float64)).to(self.device), requires_grad=True)
+                input_2 = Variable(T.FloatTensor(np.array(input_2).astype(np.float64)).to(self.device), requires_grad=True)
+                targets = T.FloatTensor(np.array(targets).astype(np.float64), requires_grad=True).to(self.device)
                 self.model.reset_grad()
                 output = self.model(input_1, input_2)
                 loss = self.model.loss(output.flatten(), targets)
@@ -75,15 +77,12 @@ class Trainer:
 
                 if batch_idx % self.save_every == 0 and batch_idx != 0 or batch_idx == len(train_batches) - 1:
                     self.save_train_losses()
-                    self.model.save_checkpoint(epoch, batch_idx)
+                    self.model.save_checkpoint(iter, batch_idx)
                     self.model.save_train_losses(self.train_losses)
-                    self.model.save_checkpoint(epoch, batch_idx)
+                    self.model.save_checkpoint(iter, batch_idx)
                     self.test()
 
             
-    def print_loss(self, epoch, batch_idx, loss):
-        print("Epoch: {}, Batch: {}, Loss: {}".format(epoch, batch_idx, loss))
-
     def load_model_from_path(self, path):
         self.model.load_state_dict(T.load(path))
     
@@ -94,7 +93,6 @@ class Trainer:
             os.makedirs(out_dir)
         plt.savefig("{}/{}_{}".format(out_dir, self.model.name, 'train_losses.png'))
     
-        
     def test(self):
         if len(self.test_loader['data']) == 0:
             print('Skipping test')

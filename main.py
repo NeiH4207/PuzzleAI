@@ -11,7 +11,8 @@ from utils import *
 
 def get_dataset(file_dir, file_name, iter, saved=False):
     if configs['preprocess']:
-        dataset = DataProcessor.load_data_from_binary_file(file_dir, file_name)
+        dataset = None
+        dataset = DataProcessor.load_data_from_binary_file(file_dir, file_name)[:20]
         dataset = DataProcessor.generate_data(dataset, 
                                         (4,4),
                                         img_configs['block-size'],
@@ -27,8 +28,13 @@ def get_dataset(file_dir, file_name, iter, saved=False):
 def main():
     configs['preprocess'] = True
     configs['num-dataset'] = 20
-    file_dir = "input/data/"
-    trainer = Trainer(model=ProNet(img_configs['image-size']), lr=0.0001, loss='bce', optimizer='adas', batch_size=64, epochs=3)
+    file_dir = "input/data/images_data/"
+    trainer = Trainer(model=ProNet2(img_configs['image-size']), 
+                      lr=0.0001, 
+                      loss='bce', 
+                      optimizer='adas', 
+                      batch_size=64, 
+                      repeat=2)
     # trainer.model.load_checkpoint(1, 616)
     for i in range(configs['num-dataset']):
         file_name = "image_data_batch_{}.bin".format(i)
@@ -43,6 +49,9 @@ def main():
         trainer.train_loader = trainset
         trainer.test_loader = testset
         trainer.train()
+        trainer.train_loader = None
+        trainer.test_loader = None
+        trainset, testset = None, None
     
     
 if __name__ == "__main__":

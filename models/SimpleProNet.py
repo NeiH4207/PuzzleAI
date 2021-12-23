@@ -153,9 +153,7 @@ class ProNet(nn.Module):
         self.optimizer.step()
     
     def forward(self, x1, x2):
-        # forward color features                                     
-        x1 = x1.view(-1, 3, self.input_shape[0], self.input_shape[1])  
-        x2 = x2.view(-1, 4)
+        # forward color features    
         
         x1 = self.max_pool(F.relu(self.bn1(self.conv1(x1))))  
         x1 = self.max_pool(F.relu(self.bn2(self.conv2(x1))))
@@ -174,10 +172,12 @@ class ProNet(nn.Module):
         return torch.sigmoid(out)
     
     def predict(self, input_1, input_2):
-        input_1 = torch.FloatTensor(input_1).float().to(self.device)
-        input_2 = torch.FloatTensor(input_2).float().to(self.device)
-        output, output_2 = self.forward(input_1, input_2)
-        return output.cpu().data.numpy()[0], output_2.cpu().data.numpy()[0]
+        input_1 = torch.FloatTensor(input_1).to(self.device).detach()
+        input_2 = torch.FloatTensor(input_2).to(self.device).detach()                                 
+        input_1 = input_1.view(-1, 3, self.input_shape[0], self.input_shape[1])  
+        input_2 = input_2.view(-1, 4)
+        output = self.forward(input_1, input_2)
+        return output.cpu().data.numpy()[0][0]
           
     def load_checkpoint(self, epoch, batch_idx):
         checkpoint = torch.load("{}/{}_{}_{}.pt".format(model_configs.save_dir, model_configs.save_name, epoch, batch_idx), map_location=self.device)

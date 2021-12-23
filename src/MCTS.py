@@ -101,7 +101,7 @@ class MCTS():
                         lost_positions.append((i, j))
             
             self.Ps[s] = {}
-            
+            stop = False
             valid_block_pos, best_pos, ranks = self.env.get_valid_block_pos(state, kmax=self.n_bests)
             for x, y in valid_block_pos:
                 for _x, _y in lost_positions:
@@ -115,20 +115,25 @@ class MCTS():
                         subblocks[x - i][y - j] = block
                         recovered_image = DataProcessor.merge_blocks(subblocks)
                         recovered_image_ = DataProcessor.convert_image_to_three_dim(recovered_image)
-                        prob_1, prob_2 = self.model.predict(recovered_image_, index)
+                        prob = self.model.predict(recovered_image_, index) ** 2
                         action = ((x, y), (_x, _y), angle)
-                        self.Ps[s][action] = prob_2[0]
+                        self.Ps[s][action] = prob
                         # subblocks[x - i][y - j] = np.zeros(state.block_shape, dtype=np.uint8)
                         # new_image = deepcopy(state.dropped_blocks)
                         # new_image[x][y] = np.rot90(state.blocks[_x][_y], k=angle)
                         # new_image_ = DataProcessor.merge_blocks(new_image)
                         # cv2.imwrite('output/sample.png', new_image_)
-                        # print(action,  prob_1[0], prob_2[0])
-                        probs.append(prob_2[0]) # * 0.9 + 0.1 * ranks[x][y])
-                        if prob_1 < 0.2:
+                        # print(action,  prob)
+                        probs.append(prob) # * 0.9 + 0.1 * ranks[x][y])
+                        if prob > 0.8:
+                            stop = True
                             break
+                    if stop:
+                        break
+                if stop:
+                    break
             self.Ns[s] = 0
-            return min(max(probs), min(state.probs))
+            return min(min(state.probs), max(probs))
      
         cur_best = -float('inf')
         best_act = -1
