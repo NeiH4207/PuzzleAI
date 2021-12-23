@@ -80,7 +80,7 @@ class Trainer:
                     self.model.save_checkpoint(iter, batch_idx)
                     self.model.save_train_losses(self.train_losses)
                     self.model.save_checkpoint(iter, batch_idx)
-                    self.test()
+                    t.set_postfix(val_acc=self.test())
 
             
     def load_model_from_path(self, path):
@@ -108,6 +108,7 @@ class Trainer:
                 if _iter % 10 == 0:
                     t.set_postfix(acc=correct/(1+_iter))
         self.test_acc.append(correct / len(self.test_loader['data']))
-        print('\nTest set: Accuracy: {}/{} ({:.0f}%)\n'.format(
-            correct, len(self.test_loader['data']),
-            100. * correct / len(self.test_loader['data'])))
+        return 100. * correct / len(self.test_loader['data'])
+        # print('\nTest set: Accuracy: {}/{} ({:.0f}%)\n'.format(
+        #     correct, len(self.test_loader['data']),
+        #     100. * correct / len(self.test_loader['data'])))

@@ -37,7 +37,7 @@ def main():
                       batch_size=64, 
                       n_repeats=2)
     trainer.model.load_checkpoint(0, 1500)
-    for i in range(3, configs['num-dataset']):
+    for i in range(1, configs['num-dataset']):
         file_name = "image_data_batch_{}.bin".format(i)
         trainset, testset = get_dataset(file_dir, file_name, i, saved=False)
         print("Train set size: ", len(trainset['data']))
