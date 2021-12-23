@@ -21,7 +21,7 @@ def parse_args():
     parser.add_argument('-s', '--block-size', type=int, default=(64, 64))
     parser.add_argument('-d', '--block-dim', type=tuple_type, default=(4, 4))
     parser.add_argument('--image-size-out', type=int, default=(512, 512))   
-    parser.add_argument('-a', '--algorithm', type=str, default='mcts')
+    parser.add_argument('-a', '--algorithm', type=str, default='greedy')
     parser.add_argument('-v', '--verbose', type=bool, default=True)
     
     args = parser.parse_args()
@@ -32,14 +32,14 @@ def main():
     original_image = cv2.imread(args.image_path + args.file_name)
     
     state = State(original_image, args.block_size, args.block_dim)
-    model = ProNet2((2 * args.block_size[0], 2 * args.block_size[1]))
-    model.load_checkpoint(1, 2000)
+    model = SimpleProNet((2 * args.block_size[0], 2 * args.block_size[1]))
+    model.load_checkpoint(1, 392)
     
     model.eval()
     
     env = Environment()
-    mcts = MCTS(env, model, n_sim=8, c_puct=1, n_bests=2, verbose=args.verbose)
-    greedy = Greedy(env, model, verbose=args.verbose, n_bests=1)
+    mcts = MCTS(env, model, n_sim=6, c_puct=1, n_bests=2, verbose=args.verbose)
+    greedy = Greedy(env, model, verbose=args.verbose, n_bests=3)
     
     start = time.time()
     
