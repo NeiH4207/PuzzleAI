@@ -1,8 +1,7 @@
 # Procon 2021
 
-## Prerequisites
-- Python 3.6+
-- PyTorch 1.0+
+## Install Python Libraries
+pip install -r requirements.txt
 
 ## Training
 ```
