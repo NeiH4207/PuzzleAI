@@ -201,8 +201,8 @@ class DataHelper:
         return new_dataset
     
     def generate_data(self, dataset, block_dim, block_size, n_jobs=1):
-        HEIGHT = block_size[0] * block_dim[0]
-        WIDTH = block_size[1] * block_dim[1]
+        HEIGHT = block_size[0]
+        WIDTH = block_size[1]
         IMG_SIZE = (HEIGHT, WIDTH)
         
         new_dataset = {
@@ -409,7 +409,7 @@ class DataHelper:
         :return: dropped blocks
         """
         if prob is None:
-            prob = SystemRandom().uniform(0, 1) * 0.4 + 0.3
+            prob = SystemRandom().uniform(0, 1)
         n_rows, n_cols = blocks.shape[0], blocks.shape[1]
         n_steps = prob * n_rows * n_cols
         masked = np.zeros((n_rows, n_cols), dtype=np.uint8)

@@ -13,11 +13,11 @@ from utils import *
 def get_dataset(file_dir, file_name, iter, saved=False):
     if configs['preprocess']:
         dataset = None
-        dataset = DataProcessor.load_data_from_binary_file(file_dir, file_name)[:30]
+        dataset = DataProcessor.load_data_from_binary_file(file_dir, file_name)
         dataset = DataProcessor.generate_data(dataset, 
-                                        (4,4),
+                                        (2, 2),
                                         img_configs['block-size'],
-                                        n_jobs=8)
+                                        n_jobs=64)
         
         DataProcessor.save_data_to_binary_file(dataset, "input/data/dataset_{}.bin".format(iter))
         trainset, testset = DataProcessor.split_dataset(dataset, 0.98, saved=False)
@@ -29,15 +29,15 @@ def get_dataset(file_dir, file_name, iter, saved=False):
 def main():
     configs['preprocess'] = False or True
     configs['num-dataset'] = 20
-    file_dir = "input/data/images_data/"
+    file_dir = "input/2017_11/train/images/"
     trainer = Trainer(model=ProNet(img_configs['image-size']), 
                       lr=0.0001, 
                       loss='bce', 
                       optimizer='adas', 
                       batch_size=64, 
                       n_repeats=2)
-    trainer.model.load_checkpoint(0, 3500)
-    for i in range(1, configs['num-dataset']):
+    # trainer.model.load_checkpoint(0, 3500)
+    for i in range(0, configs['num-dataset']):
         file_name = "image_data_batch_{}.bin".format(i)
         trainset, testset = get_dataset(file_dir, file_name, i, saved=False)
         print("Train set size: ", len(trainset['data']))
