@@ -70,13 +70,13 @@ class ResNet(nn.Module):
         return out
 
 class ProNet2(nn.Module):
-    def __init__(self, input_shape, num_classes=1):
+    def __init__(self, num_classes=1):
         super(ProNet2, self).__init__()
         self.name = 'ProNet2'
         self.device = 'cuda' if torch.cuda.is_available() else 'cpu'
         if self.device == 'cuda':
             print('Using GPU')
-        self.input_shape = input_shape
+        self.input_shape = (64, 64)
         self.conv1 = nn.Conv2d(3, model_configs.num_channels>>4, 3, stride=1).to(self.device)
         self.conv2 = nn.Conv2d(model_configs.num_channels>>4, model_configs.num_channels>>2, 3, stride=1).to(self.device)
         self.conv3 = nn.Conv2d(model_configs.num_channels>>2, model_configs.num_channels, 3, stride=1).to(self.device)

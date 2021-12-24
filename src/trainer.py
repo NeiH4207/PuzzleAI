@@ -103,7 +103,7 @@ class Trainer:
             for _iter, (data, target) in enumerate(t):
                 input_1, input_2 = DataProcessor.convert_image_to_three_dim(data[0]), data[1]
                 output = self.model.predict(input_1, input_2)
-                if np.abs((output - target)) < 0.3:
+                if np.abs((output - target)) < 0.1:
                     correct += 1
                 if _iter % 10 == 0:
                     t.set_postfix(acc=correct/(1+_iter))

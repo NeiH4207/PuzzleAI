@@ -149,31 +149,28 @@ class DataHelper:
             for y in range(block_dim[1] - 1):
                 n_losts = np.sum(lost_block_labels[x:x+2,y:y+2])
                 if n_losts <= 2:
-                    if SystemRandom().uniform(0, 1) < 0.25:
-                        subblocks = dropped_blocks[x:x+2,y:y+2]
-                        recovered_image = self.merge_blocks(subblocks)
-                        # cv2.imwrite('output/sample.png', recovered_image)
-                        for i in range(0, 2):
-                            for j in range(0, 2):
-                                _x = x + i
-                                _y = y + j
-                                if lost_block_labels[_x, _y] == 0:
-                                    index = np.zeros(4, dtype=np.int8)
-                                    index[i * 2 + j] = 1
-                                    new_dataset['data'].append([recovered_image, index])
-                                    new_dataset['target'].append(1)
-                                    if SystemRandom().uniform(0, 1) < 0.5:
-                                        continue
-                                    _subblocks = copy(subblocks)
-                                    _subblocks[i][j] = np.rot90(copy(subblocks[i][j]), k=np.random.randint(1, 4))
-                                    _recovered_image = self.merge_blocks(_subblocks)
-                                    new_dataset['data'].append([_recovered_image, index])
-                                    new_dataset['target'].append(0)
+                    subblocks = dropped_blocks[x:x+2,y:y+2]
+                    recovered_image = self.merge_blocks(subblocks)
+                    # cv2.imwrite('output/sample.png', recovered_image)
+                    for i in range(0, 2):
+                        for j in range(0, 2):
+                            _x = x + i
+                            _y = y + j
+                            if lost_block_labels[_x, _y] == 0:
+                                index = np.zeros(4, dtype=np.int8)
+                                index[i * 2 + j] = 1
+                                new_dataset['data'].append([recovered_image, index])
+                                new_dataset['target'].append(1)
+                                if SystemRandom().uniform(0, 1) < 0.5:
+                                    continue
+                                _subblocks = copy(subblocks)
+                                _subblocks[i][j] = np.rot90(copy(subblocks[i][j]), k=np.random.randint(1, 4))
+                                _recovered_image = self.merge_blocks(_subblocks)
+                                new_dataset['data'].append([_recovered_image, index])
+                                new_dataset['target'].append(0)
                                     # cv2.imwrite('output/sample.png', _recovered_image)
                                 
                 if n_losts >= 1 and n_losts <= 3 and len(lost_positions) > 1:
-                    if SystemRandom().uniform(0, 1) < 0.35:
-                        continue
                     subblocks = dropped_blocks[x:x+2,y:y+2]
                     # recovered_image = self.merge_blocks(subblocks)
                     # cv2.imwrite('output/sample.png', recovered_image)
