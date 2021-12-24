@@ -125,9 +125,9 @@ class MCTS():
                         # cv2.imwrite('output/sample.png', new_image_)
                         # print(action,  prob)
                         probs.append(prob) # * 0.9 + 0.1 * ranks[x][y])
-                        if prob > 0.8:
-                            stop = True
-                            break
+                        # if prob > 0.95:
+                        #     stop = True
+                        #     break
                     if stop:
                         break
                 if stop:

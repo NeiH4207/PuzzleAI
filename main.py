@@ -36,7 +36,7 @@ def main():
                       optimizer='adas', 
                       batch_size=64, 
                       n_repeats=2)
-    trainer.model.load_checkpoint(0, 1500)
+    trainer.model.load_checkpoint(0, 3500)
     for i in range(1, configs['num-dataset']):
         file_name = "image_data_batch_{}.bin".format(i)
         trainset, testset = get_dataset(file_dir, file_name, i, saved=False)

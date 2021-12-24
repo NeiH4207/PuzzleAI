@@ -45,7 +45,7 @@ class Greedy():
                     if prob > best_prob:
                         best_prob = prob 
                         best_action = action
-                    if prob > 0.8:
+                    if prob > 0.95:
                         stop = True
                         break
                 if stop:

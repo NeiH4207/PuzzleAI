@@ -33,12 +33,11 @@ def main():
     
     state = State(original_image, args.block_size, args.block_dim)
     model = SimpleProNet((2 * args.block_size[0], 2 * args.block_size[1]))
-    model.load_checkpoint(1, 392)
-    
+    model.load_checkpoint(1, 4160)
     model.eval()
     
     env = Environment()
-    mcts = MCTS(env, model, n_sim=6, c_puct=1, n_bests=2, verbose=args.verbose)
+    mcts = MCTS(env, model, n_sim=4, c_puct=0.5, n_bests=2, verbose=args.verbose)
     greedy = Greedy(env, model, verbose=args.verbose, n_bests=3)
     
     start = time.time()

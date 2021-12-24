@@ -80,8 +80,24 @@ class DataHelper:
                     continue
                 # resize image if valid size
                 try:
-                    image = cv2.resize(image, img_configs['max-size'])
-                    data.append(image)
+                    # cv2.imwrite('output/sample.png', image)
+                    size = image.shape[:2]
+                    # size = min(size[0], size[1]), min(size[0], size[1])
+                    center = (size[0] / 2, size[1] / 2)
+                    w, h =  img_configs['max-size']
+                    x = int(center[1] - w/2)
+                    y = int(center[0] - h/2)
+                    if x < 0 or y < 0:
+                        continue
+                    crop_img = image[y:y+h, x:x+w]
+                    block_dim = (int(w / img_configs['block-size'][0]),
+                                 int(h / img_configs['block-size'][1]))
+                    blocks = self.split_image_to_blocks(crop_img, block_dim)
+                    for i in range(block_dim[0]):
+                        for j in range(block_dim[1]):
+                            # cv2.imwrite('output/sample.png', blocks[i][j])
+                            data.append(blocks[i][j])
+                    t.set_postfix(size=len(data))
                 except:
                     continue
             _index = index + first_batch

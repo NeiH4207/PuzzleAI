@@ -16,7 +16,7 @@ configs = {
 }
 
 img_configs = {
-    'max-size': (64, 64),
+    'max-size': (512, 512),
     'image-size': (128, 128),
     'image-channels': 3,
     'block-size': (64, 64),
