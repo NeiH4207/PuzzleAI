@@ -56,7 +56,9 @@ class DataHelper:
             cPickle.dump(dataset, f)
         
         
-    def read_url_csv(self, file_dir, file_name, chunksize=256, skiprows=0, first_batch=1, only_save_img=True):
+    def read_url_csv(self, file_dir, file_name,
+                     output_dir, chunksize=256, 
+                     skiprows=0, first_batch=1, only_save_img=True):
         """
         crawl image from url in csv file
         :param file_dir: directory of file
@@ -90,8 +92,8 @@ class DataHelper:
                     if x < 0 or y < 0:
                         continue
                     crop_img = image[y:y+h, x:x+w]
-                    block_dim = (int(w / img_configs['block-size'][0]),
-                                 int(h / img_configs['block-size'][1]))
+                    block_dim = (int(w / img_configs['image-size'][0]),
+                                 int(h / img_configs['image-size'][1]))
                     blocks = self.split_image_to_blocks(crop_img, block_dim)
                     for i in range(block_dim[0]):
                         for j in range(block_dim[1]):
@@ -101,7 +103,7 @@ class DataHelper:
                 except:
                     continue
             _index = index + first_batch
-            self.save_data_to_binary_file(data, file_dir + 'images/image_data_batch_' + str(_index) + '.bin')
+            self.save_data_to_binary_file(data, output_dir + 'images/image_data_batch_' + str(_index) + '.bin')
             if only_save_img:
                 continue
             size = img_configs['max-size'][0] >> 1 # np.random.randint(1, 3)
@@ -198,8 +200,8 @@ class DataHelper:
         return new_dataset
     
     def generate_data(self, dataset, block_dim, block_size, n_jobs=1):
-        HEIGHT = block_size[0]
-        WIDTH = block_size[1]
+        HEIGHT = block_size[0] * block_dim[0]
+        WIDTH = block_size[1] * block_dim[1]
         IMG_SIZE = (HEIGHT, WIDTH)
         
         new_dataset = {

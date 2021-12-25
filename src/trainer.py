@@ -65,7 +65,7 @@ class Trainer:
                 ]
                 input_1 = Variable(T.FloatTensor(np.array(input_1).astype(np.float64)).to(self.device), requires_grad=True)
                 input_2 = Variable(T.FloatTensor(np.array(input_2).astype(np.float64)).to(self.device), requires_grad=True)
-                targets = T.FloatTensor(np.array(targets).astype(np.float64)).to(self.device)
+                targets = Variable(T.FloatTensor(np.array(targets).astype(np.float64)).to(self.device), requires_grad=True)
                 self.model.reset_grad()
                 output = self.model(input_1, input_2)
                 loss = self.model.loss(output.flatten(), targets)

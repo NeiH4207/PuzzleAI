@@ -4,10 +4,15 @@ from src.data_helper import DataProcessor
 from multiprocessing import Pool
 
 class Greedy():
-    def __init__(self, env, model, n_bests=256, verbose=False):
+    def __init__(self, env, 
+                 model, 
+                 n_bests=256, 
+                 threshold=0.9,
+                 verbose=False):
         self.env = env
         self.model = model
         self.n_bests = n_bests
+        self.threshold = threshold
         self.verbose = verbose
         
     def next_action(self, state):
@@ -45,7 +50,7 @@ class Greedy():
                     if prob > best_prob:
                         best_prob = prob 
                         best_action = action
-                    if prob > 0.95:
+                    if prob > self.threshold:
                         stop = True
                         break
                 if stop:

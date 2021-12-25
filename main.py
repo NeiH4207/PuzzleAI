@@ -30,13 +30,12 @@ def main():
     configs['preprocess'] = False or True
     configs['num-dataset'] = 20
     file_dir = "input/2017_11/train/images/"
-    trainer = Trainer(model=ProNet2(), 
+    trainer = Trainer(model=ProNet(), 
                       lr=0.0001, 
                       loss='bce', 
                       optimizer='adas', 
                       batch_size=64, 
                       n_repeats=2
-                      
                       )
     # trainer.model.load_checkpoint(0, 3500)
     for i in range(0, configs['num-dataset']):

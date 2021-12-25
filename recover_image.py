@@ -18,11 +18,12 @@ def parse_args():
     parser.add_argument('--model-name', type=str, default='model_2_0.pt')
     parser.add_argument('--output-path', type=str, default='./output/recovered_images/')
     parser.add_argument('-f', '--file-name', type=str, default='sage_1.png')
-    parser.add_argument('-s', '--block-size', type=int, default=(64, 64))
+    parser.add_argument('-s', '--block-size', type=int, default=(32, 32))
     parser.add_argument('-d', '--block-dim', type=tuple_type, default=(4, 4))
     parser.add_argument('--image-size-out', type=int, default=(512, 512))   
     parser.add_argument('-a', '--algorithm', type=str, default='greedy')
     parser.add_argument('-v', '--verbose', type=bool, default=True)
+    parser.add_argument('-t', '--threshold', type=float, default=0.99)
     
     args = parser.parse_args()
     return args
@@ -32,13 +33,14 @@ def main():
     original_image = cv2.imread(args.image_path + args.file_name)
     
     state = State(original_image, args.block_size, args.block_dim)
-    model = SimpleProNet((2 * args.block_size[0], 2 * args.block_size[1]))
-    model.load_checkpoint(1, 4160)
+    model = ProNet2()
+    model.load_checkpoint(0, 2500)
     model.eval()
     
     env = Environment()
     mcts = MCTS(env, model, n_sim=4, c_puct=0.5, n_bests=2, verbose=args.verbose)
-    greedy = Greedy(env, model, verbose=args.verbose, n_bests=3)
+    greedy = Greedy(env, model, verbose=args.verbose, 
+                    n_bests=3, threshold=args.threshold)
     
     start = time.time()
     
