@@ -7,7 +7,7 @@ def parse_args():
     parser.add_argument('-b', '--batch-size', type=int, default=100, help='batch size')
     parser.add_argument('-s', '--skiprows', type=int, default=0, help='skip size')
     parser.add_argument('-d', '--data-dir', type=str, default='data', help='data directory')
-    parser.add_argument('-o', '--output-dir', type=str, default='input/data/128x128/', help='output directory')
+    parser.add_argument('-o', '--output-dir', type=str, default='input/data/64x64/', help='output directory')
     parser.add_argument('-t', '--type', type=str, default='train', help='data type')
     parser.add_argument('-f', '--first-batch', type=int, default=0, help='first batch')
     args = parser.parse_args()

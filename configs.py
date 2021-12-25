@@ -17,9 +17,9 @@ configs = {
 
 img_configs = {
     'max-size': (512, 512),
-    'image-size': (128, 128),
+    'image-size': (64, 64),
     'image-channels': 3,
-    'block-size': (64, 64),
+    'block-size': (32, 32),
     'block-dim': (2, 2),
     'drop-rate': 0.5,
     'image-type': 'float32',

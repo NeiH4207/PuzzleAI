@@ -103,6 +103,26 @@ class ProNet2(nn.Module):
         
         self.train_losses = []
         
+    def forward(self, x1, x2):
+        # forward color features                               
+        x1 = x1.view(-1, 3, self.input_shape[0], self.input_shape[1])  
+        x2 = x2.view(-1, 4)
+        x1 = self.max_pool(F.relu(self.bn1(self.conv1(x1))))  
+        x1 = F.relu(self.bn2(self.conv2(x1)))
+        x1 = self.avg_pool(F.relu(self.bn3(self.conv3(x1))) )
+        x1 = F.relu(self.resnet(x1))       
+        x1 = x1.view(-1, x1.shape[1] * x1.shape[2] * x1.shape[3])           
+        
+        x = torch.cat((x1, x2), 1)                               
+        x = F.dropout(F.relu(self.fc_bn1(self.fc1(x))), p=model_configs.dropout, training=self.training)
+        x = F.dropout(F.relu(self.fc_bn2(self.fc2(x))), p=model_configs.dropout, training=self.training)
+        
+        out = F.relu(self.fc_bn3(self.fc3(x)))
+        out = self.fc4(out)  
+        out = self.fc5(out)             
+         
+        return torch.sigmoid(out)
+    
         
     def set_loss_function(self, loss):
         if loss == "mse":
@@ -141,26 +161,6 @@ class ProNet2(nn.Module):
         
     def step(self):
         self.optimizer.step()
-    
-    def forward(self, x1, x2):
-        # forward color features                               
-        x1 = x1.view(-1, 3, self.input_shape[0], self.input_shape[1])  
-        x2 = x2.view(-1, 4)
-        x1 = self.max_pool(F.relu(self.bn1(self.conv1(x1))))  
-        x1 = F.relu(self.bn2(self.conv2(x1)))
-        x1 = self.avg_pool(F.relu(self.bn3(self.conv3(x1))) )
-        x1 = F.relu(self.resnet(x1))       
-        x1 = x1.view(-1, x1.shape[1] * x1.shape[2] * x1.shape[3])           
-        
-        x = torch.cat((x1, x2), 1)                               
-        x = F.dropout(F.relu(self.fc_bn1(self.fc1(x))), p=model_configs.dropout, training=self.training)
-        x = F.dropout(F.relu(self.fc_bn2(self.fc2(x))), p=model_configs.dropout, training=self.training)
-        
-        out = F.relu(self.fc_bn3(self.fc3(x)))
-        out = self.fc4(out)  
-        out = self.fc5(out)             
-         
-        return torch.sigmoid(out)
     
     def predict(self, input_1, input_2):
         input_1 = torch.FloatTensor(input_1).to(self.device).detach()

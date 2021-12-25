@@ -7,6 +7,7 @@ from src.trainer import Trainer
 # from models.ProNet import ProNet
 from models.SimpleProNet import ProNet
 from models.ProNet2 import ProNet2
+from models.VGG import VGG
 import cv2
 from utils import *
 
@@ -28,9 +29,9 @@ def get_dataset(file_dir, file_name, iter, saved=False):
 
 def main():
     configs['preprocess'] = False or True
-    configs['num-dataset'] = 20
-    file_dir = "input/2017_11/train/images/"
-    trainer = Trainer(model=ProNet(), 
+    configs['num-dataset'] = 200
+    file_dir = "input/data/64x64/images/"
+    trainer = Trainer(model=VGG('VGG9'), 
                       lr=0.0001, 
                       loss='bce', 
                       optimizer='adas', 
