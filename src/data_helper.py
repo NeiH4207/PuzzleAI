@@ -54,7 +54,30 @@ class DataHelper:
             os.makedirs(dir_path)
         with open(path, 'wb') as f:
             cPickle.dump(dataset, f)
-        
+    
+    def save_item_to_binary_file(self, item, path):
+        """
+        Save item to binary file
+        :param item: item
+        :param path: path to file
+        :return: None
+        """
+        dir_path = path.split('/')[:-1]
+        dir_path = '/'.join(dir_path)
+        if not os.path.exists(dir_path):
+            os.makedirs(dir_path)
+        with open(path, 'wb') as f:
+            cPickle.dump(item, f)
+            
+    def load_item_from_binary_file(self, path):
+        """
+        Load item from binary file
+        :param path: path to file
+        :return: item
+        """
+        with open(path, 'rb') as f:
+            item = cPickle.load(f)
+        return item
         
     def read_url_csv(self, file_dir, file_name,
                      output_dir, chunksize=256, 

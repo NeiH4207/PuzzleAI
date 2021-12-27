@@ -7,7 +7,7 @@ import cv2
 import numpy as np
 from src.trainer import Trainer
 from models.vgg import VGG
-from models.ProNet import ProNet
+from models.VGG import ProNet
 import torch.nn as nn
 from copy import deepcopy as copy
 

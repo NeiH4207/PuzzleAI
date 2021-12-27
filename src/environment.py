@@ -80,7 +80,9 @@ class State:
     def save_image(self, filename='sample.png'):
         new_img = DataProcessor.merge_blocks(self.dropped_blocks, 'rgb')
         cv2.imwrite('output/' + filename, new_img)
-
+    def save_binary(self, path):
+        DataProcessor.save_binary(self.dropped_blocks, path)
+        
 class Environment():
     """
     Class for the environment.
