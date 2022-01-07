@@ -26,47 +26,42 @@ class TreeSearch():
     
     def search(self, state, k):
         
+        s = state.get_string_presentation()
         state = state.copy()
-        probs = []
+        
+        if self.verbose:
+            state.save_image()
+        # state.show()
         actions = self.env.get_available_actions(state)
-        Vs = []
-        for action in actions:            
-            if action[0] == 'choose':
-                Vs.append(state.curr_reward)
-            else:
-                _state = self.env.soft_update_state(state, action)
-                Vs.append(self.env.get_reward(_state))
-                # _state.save_image()
-                # _state = _state
+    
+        rewards = []
+        for action in actions:
+            rewards.append(self.env.get_reward(state, action))
+        
+        if len(rewards) == 0:
+            return None, 100
+        
         if k == 0:
-            index = np.argmax(Vs)
-            return actions[index], Vs[index]
+            best_actions = np.array(np.argwhere(rewards == np.max(rewards)), dtype=object).flatten()
+            best_action = np.random.choice(best_actions)
+            return actions[best_action], rewards[best_action]
         else:
-            v_min = min(Vs)
-            v_max = max(Vs)
-            Vs = [(x - v_min) / (v_max - v_min + EPS) for x in Vs]
-            sum_v = np.sum(Vs)
-            if sum_v == 0:
-                probs.append(1 / len(actions))
-            else:
-                probs = [x / sum_v for x in Vs]
-            dirichlet_noise = dirichlet(np.ones(len(actions)) * 0.3)
-            probs = np.array(probs ) * 0.9 + dirichlet_noise * 0.1
-                    
             # choose the action with the 5 highest probabilities
-            top_index = np.argsort(probs)[-self._breadth:]
-            # top_probs = probs[top_index]
-            # top_probs = top_probs / np.sum(top_probs)
+            # probs = np.array(rewards) / np.sum(rewards)
+            # dirichlet_noise = dirichlet(np.ones(len(actions)) * 0.3)
+            # probs = np.array(probs) * 0.9 + np.array(dirichlet_noise) * 0.1
+            top_index = np.argsort(rewards)[-self._breadth:]
             top_actions = [actions[i] for i in top_index]
             next_actions = []
             next_v = []
-            for action in top_actions:
-                _state = self.env.soft_update_state(state, action)
+            for i, action in enumerate(top_actions):
+                _state = self.env.step(state, action)
                 act, v = self.search(_state, k - 1)
                 next_actions.append(act)
-                next_v.append(v)
-            index = np.argmax(next_v)
-            return top_actions[index], next_v[index]
+                next_v.append(v + 0.99 * rewards[top_index[i]])
+            best_indices = np.argwhere(next_v == np.max(next_v)).flatten()
+            best_index = np.random.choice(best_indices)
+            return top_actions[best_index], next_v[best_index]
                         
     def get_action(self, state):
         s = state.get_string_presentation()
@@ -75,7 +70,8 @@ class TreeSearch():
         # else:
         #     self.depth[s] = self.depth[self.parent[s]] + 1
         
-        action, prob = self.search(state, self._depth)
+        action, v = self.search(state, self._depth)
+        print(action, v)
         return action
         
          

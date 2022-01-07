@@ -76,7 +76,7 @@ def main():
     print('Time: {}'.format(end - start))
     DataProcessor.save_item_to_binary_file(
         state,
-        'output/states/' + 'state' + '.bin') # _' + args.file_name
+        'output/states/' + args.file_name.split('.')[0] + '.bin') # _' + args.file_name
     
 if __name__ == "__main__":
     main()

@@ -84,7 +84,7 @@ class MCTS():
         # print('Simulating... ' + 'depth: ' + str(state.depth))
         s = state.get_string_presentation()
         state = state.copy()
-        
+        # state.show()
         terminate = self.env.get_game_ended(state)
         
         if terminate: 
@@ -99,35 +99,41 @@ class MCTS():
             actions = self.env.get_available_actions(state)
             
             self.Ps[s] = {}
+            rewards = []
             Pis = []
             for action in actions:
-                
-                if action[0] == 'choose':
-                    Pis.append(state.curr_reward)
-                else:
-                    _state = self.env.soft_update_state(state, action)
-                    Pis.append(self.env.get_reward(_state))
-                    # _state.save_image()
-                    # _state = _state
-            sum_pis = np.sum(Pis)
-            # dirichlet_noise = dirichlet(np.ones(len(actions)) * 0.3)
-            # for i in range(len(actions)):
-            #     probs.append(Pis[i] / sum_pis + dirichlet_noise[i])
-            if sum_pis == 0:
-                probs.append(1 / len(actions))
+                rewards.append(self.env.get_reward(state, action))
+                # _state = self.env.soft_update_state(state, action)
+                # _state.save_image()
+                # _state = _state
+            mn = np.min(rewards)
+            mx = np.max(rewards)
+            if mx != mn:
+                for i in range(len(rewards)):
+                    Pis.append((rewards[i] - mn) / (mx - mn))
             else:
-                probs = [x / sum_pis for x in Pis]
-            best_prob = np.max(probs)
+                for i in range(len(rewards)):
+                    Pis.append(1.0 / len(rewards))
+            sum_pis = np.sum(Pis)
+            for i in range(len(actions)):
+                probs.append(Pis[i] / sum_pis)
+            # dirichlet_noise = dirichlet(np.ones(len(actions)) * 0.3)
+            # probs = np.array(probs) * 0.9 + np.array(dirichlet_noise) * 0.1
+            # if sum_pis == 0:
+            #     probs.append(1 / len(actions))
+            # else:
+            #     probs = [x / sum_pis for x in Pis]
+            best_reward = np.max(rewards)
             for i in range(len(actions)):
                 self.Ps[s][actions[i]] = probs[i]
-                
+
             self.Ns[s] = 0
-            return best_prob
+            return best_reward
         if state.depth >= 250: 
             print('Warning: depth = ' + str(state.depth))
         cur_best = -float('inf')
         best_acts = []
-        avaliable_actions = self.env.get_available_actions(state)
+        # avaliable_actions = self.env.get_available_actions(state)
         for action in self.Ps[s].keys():
             if (s, action) in self.Qsa:
                 u = self.Qsa[(s, action)] + \

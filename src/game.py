@@ -23,9 +23,9 @@ class State:
             self.actions = []
             self.last_action = (0, 0)
             self.curr_position = None
-            self.n_choose = 0
+            self.n_chooses = 0
             self.max_choose = self.shape[0] * self.shape[1] // 2
-            self.n_swap = 0
+            self.n_swaps = 0
             self.mode = 'rgb'
             self.make()
         
@@ -66,10 +66,9 @@ class State:
         state.last_action = deepcopy(self.last_action)
         state.mode = self.mode
         state.curr_position = self.curr_position
-        state.n_choose = self.n_choose
+        state.n_chooses = self.n_chooses
         state.max_choose = self.max_choose
-        state.n_swap = self.n_swap
-        state.curr_reward = self.curr_reward
+        state.n_swaps = self.n_swaps
         state.name = self.name
         return state
        
@@ -85,14 +84,32 @@ class State:
     def save_image(self, filename='sample.png'):
         new_img = DataProcessor.merge_blocks(self.blocks, 'rgb')
         cv2.imwrite('output/' + filename, new_img)
-
+        
+    def show(self):
+        # print matrix pretty format
+        print('-----------------------------------------------------')
+        if self.curr_position:
+            print('curr_position: {}, value: {}'.format(self.curr_position, self.matrix[self.curr_position[0]][self.curr_position[1]]))
+        for i in range(self.shape[0]):
+            for j in range(self.shape[1]):
+                print('{:>3d}'.format(self.matrix[i][j]), end='')
+            print(' | ', end='')
+            for j in range(self.shape[1]):
+                print('{:>3d}'.format(j + i * self.shape[1]), end='')
+            print()
+        print('-----------------------------------------------------')
+        print('Number of chooses: {}'.format(self.n_chooses))
+        print('Number of swaps: {}'.format(self.n_swaps))
+        
 class Environment():
     """
     Class for the environment.
     """
-    def __init__(self, name='recover_image'):
+    def __init__(self, r1, r2, name='recover_image'):
         self.name = name
         self.state = None
+        self.r1 = - r1 / (r1 + r2)
+        self.r2 = - r2 / (r1 + r2)
         self.reset()
         self.next_step = {}
         self.counter = {}
@@ -100,18 +117,35 @@ class Environment():
     def reset(self):
         return
     
-    def get_reward(self, state):
+    def get_reward(self, state, action):
         reward = 0
-        for i in range(state.shape[0]):
-            for j in range(state.shape[1]):
-                position = state.matrix[i][j]
-                _x, _y = position // state.shape[1], position % state.shape[1]
-                r = min(abs(_x - i), state.shape[0] - abs(_x - i))
-                c = min(abs(_y - j), state.shape[1] - abs(_y - j))
-                reward += r + c
+        if action[0] == 'swap':
+            x1, y1, x2, y2 = action[1]
+            true_pos = (state.matrix[x1][y1] // state.shape[1],\
+                          state.matrix[x1][y1] % state.shape[1])
+            cost_1 = min(abs(true_pos[0] - x1), state.shape[0] - abs(true_pos[0] - x1)) + \
+                        min(abs(true_pos[1] - y1), state.shape[1] - abs(true_pos[1] - y1))
+            cost_2 = min(abs(true_pos[0] - x2), state.shape[0] - abs(true_pos[0] - x2)) + \
+                        min(abs(true_pos[1] - y2), state.shape[1] - abs(true_pos[1] - y2))
+            true_pos = (state.matrix[x2][y2] // state.shape[1],\
+                        state.matrix[x2][y2] % state.shape[1])
+            cost_3 = min(abs(true_pos[0] - x2), state.shape[0] - abs(true_pos[0] - x2)) + \
+                        min(abs(true_pos[1] - y2), state.shape[1] - abs(true_pos[1] - y2))
+            cost_4 = min(abs(true_pos[0] - x1), state.shape[0] - abs(true_pos[0] - x1)) + \
+                        min(abs(true_pos[1] - y1), state.shape[1] - abs(true_pos[1] - y1)) 
+                         
+            reward = 0.51 * (cost_1 - cost_2) + cost_3 - cost_4 + self.r2
+        else:
+            x, y = action[1]
+            true_pos = (state.matrix[x][y] // state.shape[1],\
+                            state.matrix[x][y] % state.shape[1])
+            cost_1 = min(abs(true_pos[0] - x), state.shape[0] - abs(true_pos[0] - x)) + \
+                        min(abs(true_pos[1] - y), state.shape[1] - abs(true_pos[1] - y))
                 
-        reward = 1 / np.log(reward + 1 + EPS)
-        state.curr_reward = reward
+            reward = self.r1 + 0.0001 * cost_1
+        # mn = - 2 - min(self.r1, self.r2)
+        # mx = 2 + max(self.r1, self.r2)
+        # return (reward - mn) / (mx - mn)
         return reward
     
     def get_haminton_distance(self, state):
@@ -124,8 +158,20 @@ class Environment():
                     total_diff += 1
         return total_diff
     
+    def get_mahatan_distance(self, state):
+        total_diff = 0
+        for i in range(state.shape[0]):
+            for j in range(state.shape[1]):
+                x1, y1 = i, j
+                true_pos = (state.matrix[x1][y1] // state.shape[1],\
+                          state.matrix[x1][y1] % state.shape[1])
+                cost = min(abs(true_pos[0] - x1), state.shape[0] - abs(true_pos[0] - x1)) + \
+                            min(abs(true_pos[1] - y1), state.shape[1] - abs(true_pos[1] - y1))
+                total_diff += cost
+        return total_diff
+    
     def get_game_ended(self, state, check_repeat=True):
-        if state.n_choose == state.max_choose:
+        if state.n_chooses == state.max_choose * 2:
             return True
         # if check_repeat:
         #     if state.name in self.counter:
@@ -150,21 +196,27 @@ class Environment():
             dy = [0, 1, 0, -1]
             matrix = deepcopy(state.matrix)
             x1, y1 = state.curr_position
-            # for x1 in range(state.shape[0]):
-            #     for y1 in range(state.shape[1]):
-            for i in range(4):
-                x2 = (x1 + dx[i]) % state.shape[0]
-                y2 = (y1 + dy[i]) % state.shape[1]
-                if not repeat and state.last_action[1] == (x2, y2, x1, y1):
-                    continue
-                matrix[x1][y1], matrix[x2][y2] = \
-                    deepcopy([state.matrix[x2][y2], state.matrix[x1][y1]])
-                s = state.string_presentation((matrix, (x2, y2)))
-                if s in self.counter:
-                    continue
-                actions.append(('swap', (x1, y1, x2, y2)))
+            value = x1 * state.shape[1] + y1
+            if value != state.matrix[x1][y1]:
+                
+                # for x1 in range(state.shape[0]):
+                #     for y1 in range(state.shape[1]):
+                for i in range(4):
+                    x2 = (x1 + dx[i]) % state.shape[0]
+                    y2 = (y1 + dy[i]) % state.shape[1]
+                    if not repeat and state.last_action[1] == (x2, y2, x1, y1):
+                        continue
+                #     matrix[x1][y1], matrix[x2][y2] = \
+                #         deepcopy([state.matrix[x2][y2], state.matrix[x1][y1]])
+                #     s = state.string_presentation((matrix, (x2, y2)))
+                #     if s in self.counter:
+                #         continue
+                    actions.append(('swap', (x1, y1, x2, y2)))
         for action in state.choose_actions:
-            if action[1] != state.curr_position:
+            x1, y1 = action[1]
+            value = x1 * state.shape[1] + y1
+            if action[1] != state.curr_position and \
+                value != state.matrix[x1][y1]:
                 actions.append(action)
         return actions
     
@@ -181,33 +233,37 @@ class Environment():
                 deepcopy([next_s.blocks[x2][y2], next_s.blocks[x1][y1]])
             next_s.matrix[x1][y1], next_s.matrix[x2][y2] = \
                 deepcopy([next_s.matrix[x2][y2], next_s.matrix[x1][y1]])
-            next_s.n_swap += 1
+            next_s.n_swaps += 1
             pos = (x2, y2)
             next_s.curr_position = pos
         else:
             position = action[1]
             next_s.curr_position = position
-            next_s.n_choose += 1
+            next_s.n_chooses += 1
         next_s.depth += 1
-        state.actions.append(action)
+        # state.actions.append(action)
         next_s.set_string_presentation()
         next_s.last_action = action
         return next_s
     
     def soft_update_state(self, state, action):
         """
-        Updates the state of the environment.
+        Performs an action in the environment.
         """
-        state = state.copy()
+        next_s = state.copy()
         if action[0] == 'swap':
             x1, y1, x2, y2 = action[1]
-            state.blocks[x1][y1], state.blocks[x2][y2] = \
-                deepcopy([state.blocks[x2][y2], state.blocks[x1][y1]])
-            state.matrix[x1][y1], state.matrix[x2][y2] = \
-                deepcopy([state.matrix[x2][y2], state.matrix[x1][y1]])
-            state.n_swap += 1
+            next_s.matrix[x1][y1], next_s.matrix[x2][y2] = \
+                deepcopy([next_s.matrix[x2][y2], next_s.matrix[x1][y1]])
+            next_s.n_swaps += 1
+            pos = (x2, y2)
+            next_s.curr_position = pos
         else:
             position = action[1]
-            state.curr_position = position
-            state.n_choose += 1
-        return state
+            next_s.curr_position = position
+            next_s.n_chooses += 1
+        next_s.depth += 1
+        # state.actions.append(action)
+        next_s.set_string_presentation()
+        next_s.last_action = action
+        return next_s
