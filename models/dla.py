@@ -121,7 +121,7 @@ class DLA(nn.Module):
         self.layer4 = Tree(block,  32, 64, level=2, stride=2)
         self.layer5 = Tree(block, 64, 128, level=2, stride=2)
         self.layer6 = Tree(block, 128, 256, level=1, stride=2)
-        self.linear1 = nn.Linear(1024 + 4, 128)
+        self.linear1 = nn.Linear(256 + 4, 128)
         self.linear2 = nn.Linear(128, num_classes)
 
     def forward(self, x1, x2):
@@ -130,10 +130,12 @@ class DLA(nn.Module):
         out = self.layer1(out)
         out = self.layer2(out)
         out = self.layer3(out)
+        out = F.avg_pool2d(out, 2)
         out = self.layer4(out)
+        out = F.avg_pool2d(out, 2)
         out = self.layer5(out)
+        out = F.avg_pool2d(out, 2)
         out = self.layer6(out)
-        out = F.avg_pool2d(out, 4)
         out = out.view(out.size(0), -1)
         out = torch.cat((out, x2), 1)   
         out = self.linear1(out)  
@@ -201,7 +203,7 @@ class DLA(nn.Module):
             'state_dict': self.state_dict(),
             'train_loss': self.train_losses,
             'optimizer': self.optimizer
-        }, "{}/{}_{}_{}.pt".format(model_configs.save_dir, model_configs.save_name, epoch, batch_idx))
+        }, "{}/{}_{}_{}.pt".format(model_configs.save_dir, self.name, epoch, batch_idx))
         
     def save_train_losses(self, train_losses):
         self.train_losses = train_losses
