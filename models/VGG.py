@@ -13,7 +13,7 @@ import torch.nn.functional as F
 from torchsummary.torchsummary import summary
 from models.pronet import Pronet
 cfg = {
-    'VGG9': [32, 'M', 64, 'M', 128, 128, 'M', 256, 256, 'M', 256, 256, 'M'],
+    'VGG9': [16, 'M', 32, 'M', 64, 64, 'M', 128, 128, 'M', 256, 256, 'M'],
     'VGG11': [64, 'M', 128, 'M', 256, 256, 'M', 512, 512, 'M', 512, 512, 'M'],
     'VGG13': [64, 64, 'M', 128, 128, 'M', 256, 256, 'M', 512, 512, 'M', 512, 512, 'M'],
     'VGG16': [64, 64, 'M', 128, 128, 'M', 256, 256, 256, 'M', 512, 512, 512, 'M', 512, 512, 512, 'M'],
@@ -28,6 +28,13 @@ class VGG(Pronet):
         self.fc1 = nn.Linear(4 * cfg[name][-2] + 4, 32)
         self.fc2 = nn.Linear(32, 1)
         self.name = name
+        self.name = 'ProNet'
+        self.device = 'cuda' if torch.cuda.is_available() else 'cpu'
+        if self.device == 'cuda':
+            print('Using GPU')
+        else:
+            print('Using CPU')
+        self.train_losses = []
 
     def _make_layers(self, cfg):
         layers = []
