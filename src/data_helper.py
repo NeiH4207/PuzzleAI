@@ -37,7 +37,7 @@ class DataHelper:
         :param path: path to the file
         :return: data
         """
-        file_dir = path + file_name
+        file_dir = os.path.join(path, file_name)
         dataset = self.unpickle(file_dir)
         return dataset
     
@@ -373,7 +373,7 @@ class DataHelper:
             blocks.append(row)
         return np.array(blocks)
     
-    def merge_blocks(self, blocks, mode='rgb'):
+    def merge_blocks(self, blocks, mask=None, mode='rgb'):
         """
         Recover image from blocks
         :param blocks: blocks in image
@@ -385,7 +385,10 @@ class DataHelper:
         h, w = image_size
         block_size = blocks[0][0].shape[0], blocks[0][0].shape[1]
         image_shape = (h, w) if mode == 'gray' else (h, w, 3)
-        image = np.empty(image_shape, dtype=np.uint8)
+        if mask is None:
+            image = np.zeros(image_shape, dtype=np.uint8)
+        else:
+            image = mask
         for i in range(n_rows):
             for j in range(n_cols):
                 image[i * block_size[0]:(i + 1) * block_size[0], 
@@ -406,9 +409,8 @@ class DataHelper:
         for i in range(n_rows):
             for j in range(n_cols):
                 _indices.append((i, j))
-        pos = [i for i in range(1, len(_indices))]
+        pos = [i for i in range(0, len(_indices))]
         np.random.shuffle(pos)
-        pos = [0] + pos
         indices = [_indices[i] for i in pos]
         count = 0
         
@@ -465,7 +467,7 @@ class DataHelper:
         for i in range(n_rows):
             for j in range(n_cols):
                 if masked[i][j] == 0:
-                    dropped_blocks[i][j] = np.zeros(block_size)
+                    dropped_blocks[i][j] = np.zeros(block_size, dtype=np.uint8)
                     lost_block_labels[i][j] = 1
                 else:
                     dropped_blocks[i][j] = blocks[i][j]

@@ -16,3 +16,4 @@ six==1.16.0
 torch==1.10.1
 tqdm==4.62.3
 typing_extensions==4.0.1
+streamlit==0.87.0

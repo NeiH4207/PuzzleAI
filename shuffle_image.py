@@ -1,15 +1,6 @@
-import _pickle as cPickle
-from numpy.core.fromnumeric import argmax
-from numpy.core.shape_base import block
-from src.data_helper import DataHelper
-from configs import configs, img_configs
 import cv2
-import numpy as np
-from src.trainer import Trainer
-from models.vgg import VGG
-from models.VGG import ProNet
-import torch.nn as nn
-from copy import deepcopy as copy
+from src.recover.environment import GameInfo
+from src.data_helper import DataHelper
 
 import argparse
 
@@ -48,6 +39,18 @@ def main():
         args.file_name_out = args.filename.split('.')[0] + '.png'
     cv2.imwrite(args.output_path + '/' + args.file_name_out, image)
     print('image saved in {}'.format(args.output_path + '/' + args.file_name_out))
+    
+    game_info = GameInfo()
+    game_info.name = args.filename.split('.')[0]
+    game_info.block_dim = block_dim
+    game_info.max_n_chooses = block_dim[0] * block_dim[1]
+    game_info.choose_swap_ratio = [5, 5]
+    game_info.image_size = image_size
+    game_info.max_image_point_value = [255, 255, 255]
+    game_info.original_block_size = block_size
+    game_info.original_blocks = blocks.tolist()
+    game_info.mode = 'rgb'
+    game_info.save_to_json()
     
 if __name__ == "__main__":
     main()

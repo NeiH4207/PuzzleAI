@@ -8,6 +8,8 @@ from src.trainer import Trainer
 from models.SimpleProNet import ProNet
 from models.ProNet2 import ProNet2
 from models.VGG import VGG
+from models.dla import DLA
+
 import cv2
 from utils import *
 
@@ -23,15 +25,15 @@ def get_dataset(file_dir, file_name, iter, saved=False):
         DataProcessor.save_data_to_binary_file(dataset, "input/data/dataset_{}.bin".format(iter))
         trainset, testset = DataProcessor.split_dataset(dataset, 0.98, saved=False)
     else:
-        dataset = DataProcessor.load_data_from_binary_file("input/data/","dataset_{}.bin".format(iter))[:1000]
+        dataset = DataProcessor.load_data_from_binary_file("input/data/","dataset_{}.bin".format(iter))
         trainset, testset = DataProcessor.split_dataset(dataset, 0.97, saved=False)
     return trainset, testset    
 
 def main():
-    configs['preprocess'] = False or True
+    configs['preprocess'] = False
     configs['num-dataset'] = 200
     file_dir = "input/data/64x64/images/"
-    trainer = Trainer(model=VGG('VGG9'), 
+    trainer = Trainer(model=DLA(), 
                       lr=0.0001, 
                       loss='bce', 
                       optimizer='adas', 

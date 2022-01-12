@@ -19,16 +19,11 @@ class Astar():
         s = state.get_string_presentation()
         state = state.copy()
         
-        if self.verbose:
-            state.save_image()
-        # state.show()
         actions = self.env.get_available_actions(state)
     
         rewards = []
         for action in actions:
             rewards.append(self.env.get_reward(state, action))
-                # _state.save_image()
-                # _state = _state
         best_actions = np.array(np.argwhere(rewards == np.max(rewards)), dtype=object).flatten()
         best_action = np.random.choice(best_actions)
         return actions[best_action]

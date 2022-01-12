@@ -71,7 +71,7 @@ class TreeSearch():
         #     self.depth[s] = self.depth[self.parent[s]] + 1
         
         action, v = self.search(state, self._depth)
-        print(action, v)
+        # print(action, v)
         return action
         
          

@@ -12,8 +12,8 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torchsummary import summary
 
-from AdasOptimizer.adasopt_pytorch import Adas
-from configs import model_configs
+# from AdasOptimizer.adasopt_pytorch import Adas
+# from configs import model_configs
 
 cfg = {
     'VGG9': [32, 'M', 64, 'M', 128, 128, 'M', 256, 256, 'M', 256, 256, 'M'],
