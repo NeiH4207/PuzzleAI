@@ -18,7 +18,7 @@ class Greedy():
         self.blocks_rotated = None
         
     def get_next_action(self, state):
-        state = state.copy()
+        # state = state.copy()
         if self.mask is None:
             self.mask = np.zeros((state.block_size[0] * 2, state.block_size[1] * 2, 3),
                                  dtype=np.uint8)
@@ -34,8 +34,6 @@ class Greedy():
             for j in range(state.block_dim[1]):
                 if state.lost_block_labels[i][j] == 1:
                     lost_positions.append((i, j))
-        # if self.verbose:
-        #     state.save_image()
         stop = False
         probs = []
         actions = []
@@ -49,27 +47,22 @@ class Greedy():
                     [state.dropped_blocks[i + 1][j], state.dropped_blocks[i + 1][j + 1]]), dtype=np.uint8)
                 index = np.zeros(4, dtype=np.int32)
                 index[(x - i) * 2 + (y - j)] = 1
+                indexes = [index] * 4
+                images = []
                 for angle in range(4):
                     subblocks[x - i][y - j] = self.blocks_rotated[_x][_y][angle]
                     recovered_image = DataProcessor.merge_blocks(subblocks, mask=self.mask)
                     recovered_image_ = DataProcessor.convert_image_to_three_dim(recovered_image)
-                    prob = self.model.predict(recovered_image_, index) ** 2
+                    images.append(recovered_image_)
                     action = ((x, y), (_x, _y), angle)
-                    # subblocks[x - i][y - j] = np.zeros(state.block_shape, dtype=np.uint8)
-                    # new_image = deepcopy(state.dropped_blocks)
-                    # new_image[x][y] = np.rot90(state.blocks[_x][_y], k=angle)
-                    # new_image_ = DataProcessor.merge_blocks(new_image)
-                    # cv2.imwrite('output/sample.png', new_image_)
-                    # print(action,  prob)
-                    probs.append(prob)
                     actions.append(action)
-                    if prob > self.threshold:
-                        stop = True
-                        break
+                _probs = self.model.predict(images, indexes)
+                probs.extend(_probs)
+                if np.max(_probs) > self.threshold:
+                    stop = True
+                    break
                 if stop:
                     break
             if stop:
                 break
-        # if self.verbose:
-        #     state.save_image()
         return (np.array(actions, dtype=object)[np.argsort(probs)[::-1]]).tolist(), sorted(probs)[::-1]

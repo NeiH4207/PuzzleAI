@@ -4,6 +4,7 @@ import math
 import cv2
 import numpy as np
 from numpy.core.fromnumeric import argmax
+from multiprocessing import Pool
 
 from src.data_helper import DataProcessor
 EPS = 1e-8
@@ -29,6 +30,9 @@ class MCTS():
         self.Nsa  = {}  # stores #times edge s,a was visited
         self.Ns   = {}  # stores #times state s was visited
         self.Ps   = {}  # stores initial policy (returned by neural net)
+        
+        self.mask = None
+        self.blocks_rotated = None
     
     def get_next_action(self, state, temp=1):
         """
@@ -41,6 +45,16 @@ class MCTS():
         """
         s = state.get_string_presentation()
         
+        if self.mask is None:
+            self.mask = np.zeros((state.block_size[0] * 2, state.block_size[1] * 2, 3),
+                                 dtype=np.uint8)
+            self.blocks_rotated = np.zeros((state.block_dim[0], state.block_dim[1], 4, state.block_size[0], state.block_size[1], 3),
+                                           dtype=np.uint8)
+            for i in range(state.block_dim[0]):
+                for j in range(state.block_dim[1]):
+                    for k in range(4):
+                        self.blocks_rotated[i][j][k] = np.rot90(state.blocks[i][j], k=k)
+                        
         for _ in range(self.n_sim):
             self.search(state)
 
@@ -116,26 +130,54 @@ class MCTS():
                         [state.dropped_blocks[i + 1][j], state.dropped_blocks[i + 1][j + 1]]), dtype=np.uint8)
                     index = np.zeros(4, dtype=np.int32)
                     index[(x - i) * 2 + (y - j)] = 1
+                    indexes = [index] * 4
+                    images = []
+                    actions= []
                     for angle in range(4):
-                        block = np.rot90(state.blocks[_x][_y], k=angle)
+                        block =  self.blocks_rotated[_x][_y][angle]
                         subblocks[x - i][y - j] = block
-                        recovered_image = DataProcessor.merge_blocks(subblocks)
+                        # subblocks[x - i][y - j] = self.blocks_rotated[_x][_y][angle]
+                        recovered_image = DataProcessor.merge_blocks(subblocks, self.mask)
                         recovered_image_ = DataProcessor.convert_image_to_three_dim(recovered_image)
-                        prob = self.model.predict(recovered_image_, index) ** 2
+                        images.append(recovered_image_)
+                        # prob = self.model.predict(recovered_image_, index) ** 2
                         action = ((x, y), (_x, _y), angle)
-                        self.Ps[s][action] = prob
                         # subblocks[x - i][y - j] = np.zeros(state.block_shape, dtype=np.uint8)
                         # new_image = deepcopy(state.dropped_blocks)
                         # new_image[x][y] = np.rot90(state.blocks[_x][_y], k=angle)
                         # new_image_ = DataProcessor.merge_blocks(new_image)
                         # cv2.imwrite('output/sample.png', new_image_)
                         # print(action,  prob)
-                        probs.append(prob) # * 0.9 + 0.1 * ranks[x][y])
-                        if prob > self.threshold:
-                            stop = True
-                            break
-                    if stop:
+                        # probs.append(prob)
+                        actions.append(action)
+                    _probs = self.model.predict(images, indexes)
+                    probs.extend(_probs)
+                    for i in range(4):
+                        self.Ps[s][actions[i]] = _probs[i]
+                        
+                    if np.max(_probs) > self.threshold:
+                        stop = True
                         break
+                    # for angle in range(4):
+                    #     block = np.rot90(state.blocks[_x][_y], k=angle)
+                    #     subblocks[x - i][y - j] = block
+                    #     recovered_image = DataProcessor.merge_blocks(subblocks)
+                    #     recovered_image_ = DataProcessor.convert_image_to_three_dim(recovered_image)
+                    #     prob = self.model.predict([recovered_image_], [index]) ** 2
+                    #     action = ((x, y), (_x, _y), angle)
+                    #     self.Ps[s][action] = prob
+                    #     # subblocks[x - i][y - j] = np.zeros(state.block_shape, dtype=np.uint8)
+                    #     # new_image = deepcopy(state.dropped_blocks)
+                    #     # new_image[x][y] = np.rot90(state.blocks[_x][_y], k=angle)
+                    #     # new_image_ = DataProcessor.merge_blocks(new_image)
+                    #     # cv2.imwrite('output/sample.png', new_image_)
+                    #     # print(action,  prob)
+                    #     probs.append(prob) # * 0.9 + 0.1 * ranks[x][y])
+                    #     if prob > self.threshold:
+                    #         stop = True
+                    #         break
+                    # if stop:
+                    #     break
                 if stop:
                     break
             self.Ns[s] = 0

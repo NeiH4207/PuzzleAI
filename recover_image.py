@@ -2,6 +2,7 @@
 import cv2
 import numpy as np
 from models.ProNet2 import ProNet2
+from models.dla import DLA
 from models.SimpleProNet import ProNet as SimpleProNet
 # from models.VGG import ProNet
 from models.VGG import VGG
@@ -38,15 +39,16 @@ def main():
     state.make()
     state.save_image()
     model = VGG('VGG9')
+    # model.load_checkpoint(1, 827)
     model.load_checkpoint(0, 3344)
     model.eval()
     
     env = Environment()
     if args.algorithm == 'greedy':
         algo = Greedy(env, model, verbose=args.verbose, 
-                    n_bests=3, threshold=args.threshold)
+                    n_bests=7, threshold=args.threshold)
     elif args.algorithm == 'mcts':
-        algo = MCTS(env, model, n_sim=4, 
+        algo = MCTS(env, model, n_sim=6, 
                 c_puct=1, threshold=args.threshold,
                 n_bests=3, verbose=False)
     else:
@@ -63,7 +65,7 @@ def main():
     while state.depth < state.max_depth:
         actions, probs = algo.get_next_action(state)
         n_jumps = max(n_jumps - 1, 0)
-        for action in actions:
+        for idx, action in enumerate(actions):
             action = tuple(action)
             _state = state.copy()
             _state = env.step(_state, action, verbose=args.verbose)
@@ -105,10 +107,10 @@ def main():
                 state = _state
                 states.append(_state.copy())
                 break
-            
-            # print('Probability: {}'.format(prob))
+        
         
             # env.show_image(state)
+        print('Probability: {}'.format(probs[0]))
         print('Done step: {} / {}'.format(state.depth, state.max_depth))
         print('Time: %.3f' % (time.time() - start))
         

@@ -9,6 +9,7 @@ from models.SimpleProNet import ProNet
 from models.ProNet2 import ProNet2
 from models.VGG import VGG
 from models.dla import DLA
+from models.densenet import densenet_cifar
 
 import cv2
 from utils import *
@@ -33,11 +34,11 @@ def main():
     configs['preprocess'] = False
     configs['num-dataset'] = 200
     file_dir = "input/data/64x64/images/"
-    trainer = Trainer(model=DLA(), 
+    trainer = Trainer(model=VGG('VGG9'), 
                       lr=0.0001, 
                       loss='bce', 
                       optimizer='adas', 
-                      batch_size=64, 
+                      batch_size=32, 
                       n_repeats=2
                       )
     # trainer.model.load_checkpoint(0, 3500)
