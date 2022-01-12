@@ -161,8 +161,9 @@ class DataHelper:
         blocks = self.split_image_to_blocks(image, block_dim, outlier_rate=img_configs['outlier-rate'])
         dropped_blocks, lost_block_labels, masked = self.random_drop_blocks(blocks)
         
+        mask = np.zeros((IMG_SIZE[0], IMG_SIZE[1], 3), dtype=np.uint8)
         recovered_image = self.merge_blocks(dropped_blocks)
-        cv2.imwrite('output/sample.png', recovered_image)
+        # cv2.imwrite('output/sample.png', recovered_image)
         lost_positions = set()
         for i in range(block_dim[0]):
             for j in range(block_dim[1]):
@@ -176,7 +177,7 @@ class DataHelper:
                 if n_losts <= 2:
                     subblocks = dropped_blocks[x:x+2,y:y+2]
                     recovered_image = self.merge_blocks(subblocks)
-                    cv2.imwrite('output/sample.png', recovered_image)
+                    # cv2.imwrite('output/sample.png', recovered_image)
                     for i in range(0, 2):
                         for j in range(0, 2):
                             _x = x + i
@@ -191,7 +192,7 @@ class DataHelper:
                                     continue
                                 _subblocks = copy(subblocks)
                                 _subblocks[i][j] = np.rot90(copy(subblocks[i][j]), k=np.random.randint(1, 4))
-                                _recovered_image = self.merge_blocks(_subblocks)
+                                _recovered_image = self.merge_blocks(_subblocks, mask=mask)
                                 new_dataset['data'].append([_recovered_image, index])
                                 new_dataset['target'].append(0)
                                     # cv2.imwrite('output/sample.png', _recovered_image)
@@ -199,7 +200,7 @@ class DataHelper:
                 if n_losts >= 1 and n_losts <= 3 and len(lost_positions) > 1:
                     subblocks = dropped_blocks[x:x+2,y:y+2]
                     recovered_image = self.merge_blocks(subblocks)
-                    cv2.imwrite('output/sample.png', recovered_image)
+                    # cv2.imwrite('output/sample.png', recovered_image)
                     for i in range(0, 2):
                         for j in range(0, 2):
                             _x = x + i
@@ -221,8 +222,8 @@ class DataHelper:
                                                     k=SystemRandom().randint(0, 3))
                                 cp_subblocks = copy(subblocks)
                                 cp_subblocks[i][j] = rd_block
-                                _recovered_image = self.merge_blocks(cp_subblocks)
-                                cv2.imwrite('output/sample.png', _recovered_image)
+                                _recovered_image = self.merge_blocks(cp_subblocks, mask=mask)
+                                # cv2.imwrite('output/sample.png', _recovered_image)
                                 new_dataset['data'].append([_recovered_image, index])
                                 new_dataset['target'].append(0)
         return new_dataset
