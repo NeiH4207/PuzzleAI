@@ -47,6 +47,11 @@ class Greedy():
                     [state.dropped_blocks[i + 1][j], state.dropped_blocks[i + 1][j + 1]]), dtype=np.uint8)
                 index = np.zeros(4, dtype=np.int32)
                 index[(x - i) * 2 + (y - j)] = 1
+                lost_block_labels = np.array((
+                    [state.lost_block_labels[i][j], state.lost_block_labels[i][j + 1]],
+                    [state.lost_block_labels[i + 1][j], state.lost_block_labels[i + 1][j + 1]]), dtype=np.uint8)
+                
+                index = np.concatenate((index, lost_block_labels.flatten()), axis=0)
                 indexes = [index] * 4
                 images = []
                 for angle in range(4):

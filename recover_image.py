@@ -38,9 +38,9 @@ def main():
     state.load_json(file_name=args.file_name + '.json')
     state.make()
     state.save_image()
-    model = VGG('VGG9')
+    model = VGG('VGG7')
     # model.load_checkpoint(1, 827)
-    model.load_checkpoint(0, 3344)
+    model.load(1, 179)
     model.eval()
     
     env = Environment()
