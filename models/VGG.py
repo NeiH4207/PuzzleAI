@@ -13,7 +13,8 @@ import torch.nn.functional as F
 from torchsummary.torchsummary import summary
 from models.pronet import Pronet
 cfg = {
-    'VGG9': [16, 'M', 32, 'M', 64, 64, 'M', 128, 128, 'M', 256, 256, 'M'],
+    'VGG7': [16, 'M', 32, 'M', 64, 64, 'M', 128, 128, 'M', 256, 256, 'M'],
+    'VGG9': [32, 'M', 64, 'M', 128, 128, 'M', 256, 256, 'M', 256, 256, 'M'],
     'VGG11': [64, 'M', 128, 'M', 256, 256, 'M', 512, 512, 'M', 512, 512, 'M'],
     'VGG13': [64, 64, 'M', 128, 128, 'M', 256, 256, 'M', 512, 512, 'M', 512, 512, 'M'],
     'VGG16': [64, 64, 'M', 128, 128, 'M', 256, 256, 256, 'M', 512, 512, 512, 'M', 512, 512, 512, 'M'],
@@ -25,7 +26,7 @@ class VGG(Pronet):
     def __init__(self, name):
         super(Pronet, self).__init__()
         self.features = self._make_layers(cfg[name])
-        self.fc1 = nn.Linear(4 * cfg[name][-2] + 4, 32)
+        self.fc1 = nn.Linear(4 * cfg[name][-2] + 8, 32)
         self.fc2 = nn.Linear(32, 1)
         self.name = name
         self.name = 'ProNet'
@@ -53,7 +54,7 @@ class VGG(Pronet):
     def forward(self, x1, x2):
         # forward color features  
         out = self.features(x1)
-        x2 = x2.view(-1, 4)
+        x2 = x2.view(-1, 8)
         out = out.view(out.size(0), -1)
         out = torch.cat((out, x2), 1)   
         out = self.fc1(out)

@@ -122,7 +122,7 @@ class DLA(Pronet):
         self.linear2 = nn.Linear(128, num_classes)
 
     def forward(self, x1, x2):
-        x2 = x2.view(-1, 4)
+        x2 = x2.view(-1, 8)
         out = self.base(x1)
         out = self.layer1(out)
         out = self.layer2(out)
@@ -141,12 +141,12 @@ class DLA(Pronet):
         return out
 
 def test():
-    # summary(DLA(), input_size=np.array([(3, 64, 64), (1, 4)]),
+    # summary(DLA(), input_size=np.array([(3, 64, 64), (1, 8)]),
     #         batch_size=64, device='cpu')
     net = DLA()
     print(net)
     x1 = torch.randn(1, 3, 32, 32)
-    x2 = torch.randn(1, 4)
+    x2 = torch.randn(1, 8)
     y = net(x1, x2)
     print(y)
     print(y.size())

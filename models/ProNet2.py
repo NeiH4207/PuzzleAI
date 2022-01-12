@@ -89,7 +89,7 @@ class ProNet2(nn.Module):
         self.max_pool = nn.MaxPool2d(2).to(self.device)
         self.resnet = ResNet(ResidualBlock, [2, 2, 2]).to(self.device)  
         
-        self.fc1 = nn.Linear(1024 + 4, 256).to(self.device)
+        self.fc1 = nn.Linear(1024 + 8, 256).to(self.device)
         self.fc_bn1 = nn.BatchNorm1d(256).to(self.device)
 
         self.fc2 = nn.Linear(256, 128).to(self.device)
@@ -106,7 +106,7 @@ class ProNet2(nn.Module):
     def forward(self, x1, x2):
         # forward color features                               
         x1 = x1.view(-1, 3, self.input_shape[0], self.input_shape[1])  
-        x2 = x2.view(-1, 4)
+        x2 = x2.view(-1, 8)
         x1 = self.max_pool(F.relu(self.bn1(self.conv1(x1))))  
         x1 = F.relu(self.bn2(self.conv2(x1)))
         x1 = self.avg_pool(F.relu(self.bn3(self.conv3(x1))) )

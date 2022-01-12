@@ -89,7 +89,7 @@ class ProNet(nn.Module):
         self.max_pool = nn.MaxPool2d(2).to(self.device)
         self.resnet = ResNet(ResidualBlock, [2, 2, 2]).to(self.device)  
         
-        self.fc1 = nn.Linear(1024 + 4, 512).to(self.device)
+        self.fc1 = nn.Linear(1024 + 8, 512).to(self.device)
         self.fc_bn1 = nn.BatchNorm1d(512).to(self.device)
 
         self.fc2 = nn.Linear(512, 256).to(self.device)
@@ -175,7 +175,7 @@ class ProNet(nn.Module):
         input_1 = torch.FloatTensor(input_1).to(self.device).detach()
         input_2 = torch.FloatTensor(input_2).to(self.device).detach()                                 
         input_1 = input_1.view(-1, 3, self.input_shape[0], self.input_shape[1])  
-        input_2 = input_2.view(-1, 4)
+        input_2 = input_2.view(-1, 8)
         output = self.forward(input_1, input_2)
         return output.cpu().data.numpy()[0][0]
           

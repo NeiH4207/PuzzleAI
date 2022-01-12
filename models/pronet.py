@@ -25,14 +25,13 @@ class Pronet(nn.Module):
     def forward(self, x1, x2):
         pass
 
-
     def predict(self, input_1, input_2):
-        input_1 = torch.FloatTensor(input_1).to(self.device).detach()
-        input_2 = torch.FloatTensor(input_2).to(self.device).detach() 
-        input_1 = input_1.view(-1, input_1.shape[0], input_1.shape[1], input_1.shape[2])  
-        input_2 = input_2.view(-1, 4)
+        input_1 = torch.FloatTensor(np.array(input_1)).to(self.device).detach()
+        input_2 = torch.FloatTensor(np.array(input_2)).to(self.device).detach() 
+        # input_1 = input_1.view(-1, input_1.shape[0], input_1.shape[1], input_1.shape[2])  
+        # input_2 = input_2.view(-1, 8)
         output = self.forward(input_1, input_2)
-        return output.cpu().data.numpy()[0][0]
+        return output.cpu().data.numpy().flatten()
  
     def set_loss_function(self, loss):
         if loss == "mse":
@@ -73,7 +72,7 @@ class Pronet(nn.Module):
         self.optimizer.step()
           
     def load_checkpoint(self, epoch, batch_idx):
-        checkpoint = torch.load("{}/{}_{}_{}.pt".format(model_configs.save_dir, model_configs.save_name, epoch, batch_idx), map_location=self.device)
+        checkpoint = torch.load("{}/{}_{}_{}.pt".format(model_configs.save_dir, self.name, epoch, batch_idx), map_location=self.device)
         self.load_state_dict(checkpoint['state_dict'])
         self.train_losses = checkpoint['train_loss']
         self.optimizer = checkpoint['optimizer']

@@ -184,6 +184,7 @@ class DataHelper:
                             if lost_block_labels[_x, _y] == 0:
                                 index = np.zeros(4, dtype=np.int8)
                                 index[i * 2 + j] = 1
+                                index = np.concatenate((index, lost_block_labels[x:x+2,y:y+2].flatten()), axis=0)
                                 new_dataset['data'].append([recovered_image, index])
                                 new_dataset['target'].append(1)
                                 if SystemRandom().uniform(0, 1) < 0.5:
@@ -209,6 +210,7 @@ class DataHelper:
                             if lost_block_labels[_x, _y] == 1:
                                 index = np.zeros(4, dtype=np.int8)
                                 index[i * 2 + j] = 1
+                                index = np.concatenate((index, lost_block_labels[x:x+2,y:y+2].flatten()), axis=0)
                                 rd_ids = lost_positions[SystemRandom().randint(0, len(lost_positions) - 1)]
                                 while rd_ids[0] == _x and rd_ids[1] == _y:
                                     rd_ids = lost_positions[SystemRandom().randint(0, len(lost_positions) - 1)]

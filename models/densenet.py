@@ -77,7 +77,7 @@ class DenseNet(Pronet):
 
     def forward(self, x1, x2):
         out = self.conv1(x1)
-        x2 = x2.view(-1, 4)
+        x2 = x2.view(-1, 8)
         out = self.trans1(self.dense1(out))
         out = self.trans2(self.dense2(out))
         out = self.trans3(self.dense3(out))
@@ -107,7 +107,7 @@ def densenet_cifar():
 
 def test():
     net = densenet_cifar()
-    summary(net, input_size=np.array([(3, 64, 64), (1, 4)]),
+    summary(net, input_size=np.array([(3, 64, 64), (1, 8)]),
             batch_size=64, device='cpu')
 
 # test()
