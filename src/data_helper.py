@@ -105,11 +105,16 @@ class DataHelper:
                     continue
                 # resize image if valid size
                 try:
+                    scale_rate = 0.5
                     # cv2.imwrite('output/sample.png', image)
                     size = image.shape[:2]
-                    # size = min(size[0], size[1]), min(size[0], size[1])
-                    center = (size[0] / 2, size[1] / 2)
                     w, h =  img_configs['max-size']
+                    # size = min(size[0], size[1]), min(size[0], size[1])
+                    new_size = (int(max(w, scale_rate * size[0])), 
+                                int(max(h, scale_rate * size[1])))
+                    image = cv2.resize(image, new_size[::-1], interpolation=cv2.INTER_AREA)
+                    # cv2.imwrite('output/sample.png', image)
+                    center = (new_size[0] / 2, new_size[1] / 2)
                     x = int(center[1] - w/2)
                     y = int(center[0] - h/2)
                     if x < 0 or y < 0:
@@ -150,10 +155,14 @@ class DataHelper:
             'target': []
         }
         
-        if psutil.cpu_percent() > 50:
-            return new_dataset
+        # if psutil.cpu_percent() > 50:
+        #     return new_dataset
         
+        # cv2.imwrite('output/sample.png', image)
+        image = cv2.resize(image, (IMG_SIZE[0]//2, IMG_SIZE[1]//2),
+                           interpolation = cv2.INTER_AREA)
         image = cv2.resize(image, IMG_SIZE, interpolation = cv2.INTER_AREA)
+        # cv2.imwrite('output/sample.png', image)
         # rotate image
         image = np.rot90(image, k=np.random.randint(0, 4))
         # cv2.imwrite('output/sample.png', image)
@@ -162,7 +171,7 @@ class DataHelper:
         dropped_blocks, lost_block_labels, masked = self.random_drop_blocks(blocks)
         
         mask = np.zeros((IMG_SIZE[0], IMG_SIZE[1], 3), dtype=np.uint8)
-        recovered_image = self.merge_blocks(dropped_blocks)
+        # recovered_image = self.merge_blocks(dropped_blocks)
         # cv2.imwrite('output/sample.png', recovered_image)
         lost_positions = set()
         for i in range(block_dim[0]):
@@ -176,7 +185,7 @@ class DataHelper:
                 n_losts = np.sum(lost_block_labels[x:x+2,y:y+2])
                 if n_losts <= 2:
                     subblocks = dropped_blocks[x:x+2,y:y+2]
-                    recovered_image = self.merge_blocks(subblocks)
+                    recovered_image = self.merge_blocks(subblocks, mask=mask)
                     # cv2.imwrite('output/sample.png', recovered_image)
                     for i in range(0, 2):
                         for j in range(0, 2):
@@ -188,8 +197,6 @@ class DataHelper:
                                 index = np.concatenate((index, masked[x:x+2,y:y+2].flatten()), axis=0)
                                 new_dataset['data'].append([recovered_image, index])
                                 new_dataset['target'].append(1)
-                                if SystemRandom().uniform(0, 1) < 0.5:
-                                    continue
                                 _subblocks = copy(subblocks)
                                 _subblocks[i][j] = np.rot90(copy(subblocks[i][j]), k=np.random.randint(1, 4))
                                 _recovered_image = self.merge_blocks(_subblocks, mask=mask)
@@ -199,7 +206,7 @@ class DataHelper:
                                 
                 if n_losts >= 1 and n_losts <= 3 and len(lost_positions) > 1:
                     subblocks = dropped_blocks[x:x+2,y:y+2]
-                    recovered_image = self.merge_blocks(subblocks)
+                    # recovered_image = self.merge_blocks(subblocks)
                     # cv2.imwrite('output/sample.png', recovered_image)
                     for i in range(0, 2):
                         for j in range(0, 2):
@@ -439,7 +446,7 @@ class DataHelper:
         :return: dropped blocks
         """
         if prob is None:
-            prob = SystemRandom().uniform(0, 1)
+            prob = SystemRandom().uniform(0, 1) ** 2
         n_rows, n_cols = blocks.shape[0], blocks.shape[1]
         n_steps = prob * n_rows * n_cols
         masked = np.zeros((n_rows, n_cols), dtype=np.uint8)
