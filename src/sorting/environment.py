@@ -119,7 +119,7 @@ class State:
         
     def make(self):
         self.targets = np.zeros(self.shape, dtype=np.int32)
-        self.inv_matrix = np.zeros(self.shape, dtype=np.int32)
+        self.inv_targets = np.zeros(self.shape, dtype=np.int32)
         for i in range(self.shape[0]):
             for j in range(self.shape[1]):
                 x, y, angle = self.inverse[i][j]
@@ -214,37 +214,26 @@ class Environment():
             x1, y1, x2, y2 = action[1]
             true_pos = (state.targets[x1][y1] // state.shape[1],\
                           state.targets[x1][y1] % state.shape[1])
-            d1 = min(abs(true_pos[0] - x1), state.shape[0] - abs(true_pos[0] - x1)) + \
+            cost_1 = min(abs(true_pos[0] - x1), state.shape[0] - abs(true_pos[0] - x1)) + \
                         min(abs(true_pos[1] - y1), state.shape[1] - abs(true_pos[1] - y1))
-            d2 = min(abs(true_pos[0] - x2), state.shape[0] - abs(true_pos[0] - x2)) + \
+            cost_2 = min(abs(true_pos[0] - x2), state.shape[0] - abs(true_pos[0] - x2)) + \
                         min(abs(true_pos[1] - y2), state.shape[1] - abs(true_pos[1] - y2))
             true_pos = (state.targets[x2][y2] // state.shape[1],\
                         state.targets[x2][y2] % state.shape[1])
-            d3 = min(abs(true_pos[0] - x2), state.shape[0] - abs(true_pos[0] - x2)) + \
+            cost_3 = min(abs(true_pos[0] - x2), state.shape[0] - abs(true_pos[0] - x2)) + \
                         min(abs(true_pos[1] - y2), state.shape[1] - abs(true_pos[1] - y2))
-            d4 = min(abs(true_pos[0] - x1), state.shape[0] - abs(true_pos[0] - x1)) + \
+            cost_4 = min(abs(true_pos[0] - x1), state.shape[0] - abs(true_pos[0] - x1)) + \
                         min(abs(true_pos[1] - y1), state.shape[1] - abs(true_pos[1] - y1)) 
-            
-            cost_1 = d1 - d2
-            cost_2 = d3 - d4           
-            reward = 0.9 * cost_1 + cost_2 + self.r2 # / np.log(2 + state.original_distance)
+                         
+            reward = 1.0 * (cost_1 - cost_2) + cost_3 - cost_4 
         else:
             x, y = action[1]
             true_pos = (state.targets[x][y] // state.shape[1],\
                             state.targets[x][y] % state.shape[1])
             cost_1 = min(abs(true_pos[0] - x), state.shape[0] - abs(true_pos[0] - x)) + \
                         min(abs(true_pos[1] - y), state.shape[1] - abs(true_pos[1] - y))
-            dx = [1, 0, -1, 0]
-            dy = [0, 1, 0, -1]
-            # aux_score = 0
-            # for i in range(4):
-            #     _x, _y = (x + dx[i]) % state.shape[0], (y + dy[i]) % state.shape[1]
-            #     value =  _x * state.shape[1] + _y
-            #     if value == state.targets[_x][_y]:
-            #         aux_score += 1
-            
                 
-            reward = self.r1 + 0.0001 * cost_1 # + 0.000001 * state.targets[x][y] 
+            reward = self.r1 * 0.001
         # mn = - 2 - min(self.r1, self.r2)
         # mx = 2 + max(self.r1, self.r2)
         # return (reward - mn) / (mx - mn)

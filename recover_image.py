@@ -40,7 +40,7 @@ def main():
     state.save_image()
     model = VGG('VGG7')
     # model.load_checkpoint(1, 827)
-    model.load(1, 179)
+    model.load(1,907)
     model.eval()
     
     env = Environment()
@@ -48,11 +48,14 @@ def main():
         algo = Greedy(env, model, verbose=args.verbose, 
                     n_bests=7, threshold=args.threshold)
     elif args.algorithm == 'mcts':
-        algo = MCTS(env, model, n_sim=6, 
+        algo = MCTS(env, model, n_sim=8, 
                 c_puct=1, threshold=args.threshold,
-                n_bests=3, verbose=False)
+                n_bests=5, verbose=False)
     else:
         raise Exception('Unknown algorithm')
+    
+    print('Start recovering...')
+    print('Threshold:', args.threshold)
     
     start = time.time()
     states = [state]
