@@ -24,6 +24,7 @@ class GameInfo():
         self.original_blocks = None
         self.mode = None
         self.file_path = None
+        self.challenge_id = None
         
     def save_to_json(self, file_path='./input/game_info'):
         if not os.path.exists(file_path):
@@ -46,7 +47,7 @@ class GameInfo():
         self.file_path = file_path
         print('Game info saved to binary file %s' % file_path)
     
-    def load_json(self, file_path='./input/game_info', file_name='game_info.json'):
+    def load_from_json(self, file_path='./input/game_info', file_name='game_info.json'):
         file_path = os.path.join(file_path, file_name)
         # check if file exists
         if not os.path.exists(file_path):
@@ -104,6 +105,8 @@ class State(GameInfo):
                                
         self.image_size = (self.block_dim[0] * self.block_size[0],
                             self.block_dim[1] * self.block_size[1])
+        self.dropped_blocks = self.blocks
+        self.save_image()
         self.dropped_blocks, self.lost_block_labels, self.masked = DataProcessor.drop_all_blocks(self.blocks)
         self.set_string_presentation()
         self.num_blocks = len(self.blocks)
@@ -156,15 +159,18 @@ class State(GameInfo):
                 for j in range(self.block_dim[1]):
                     cp_dropped_blocks[(i + 1)%self.block_dim[0]][j] = self.dropped_blocks[i][j]
                     cp_masked[(i + 1)%self.block_dim[0]][j] = self.masked[i][j]
-                
+                    cp_inverse[(i + 1)%self.block_dim[0]][j] = self.inverse[i][j]
+        
         if mode == 'right':
             for i in range(self.block_dim[0]):
                 for j in range(self.block_dim[1]):
                     cp_dropped_blocks[i][(j + 1)%self.block_dim[1]] = self.dropped_blocks[i][j]
                     cp_masked[i][(j + 1)%self.block_dim[1]] = self.masked[i][j]
+                    cp_inverse[i][(j + 1)%self.block_dim[1]] = self.inverse[i][j]
                     
         self.dropped_blocks = cp_dropped_blocks
         self.masked = cp_masked
+        self.inverse = cp_inverse
             
     def string_presentation(self, items):
         return hash(str(items))
