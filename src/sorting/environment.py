@@ -45,7 +45,7 @@ class Solution(object):
         self.angles = []
         for i in range(len(inverse)):
             for j in range(len(inverse[i])):
-                self.angles.append(inverse[i][j][2])
+                self.angles.append((4 - inverse[i][j][2]) % 4)
         # convert to string
         self.angles = np.array(self.angles, dtype=np.int32).tolist()
     
