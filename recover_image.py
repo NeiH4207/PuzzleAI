@@ -20,7 +20,7 @@ def parse_args():
     parser.add_argument('--model-path', type=str, default='./trainned_models/')
     parser.add_argument('--model-name', type=str, default='model_2_0.pt')
     parser.add_argument('--output-path', type=str, default='./output/recovered_images/')
-    parser.add_argument('-f', '--file-name', type=str, default='natural_19')
+    parser.add_argument('-f', '--file-name', type=str, default='Match_BKA_Image')
     parser.add_argument('--image-size-out', type=int, default=(512, 512))   
     parser.add_argument('-s', '--block-size', type=int, default=(32, 32))
     parser.add_argument('-a', '--algorithm', type=str, default='greedy')
@@ -35,12 +35,12 @@ def parse_args():
 def main():
     args = parse_args()
     state = State(block_size=args.block_size)
-    state.load_json(file_name=args.file_name + '.json')
+    state.load_from_json(file_name=args.file_name + '.json')
     state.make()
     state.save_image()
     model = VGG('VGG7')
     # model.load_checkpoint(1, 827)
-    model.load(1,907)
+    model.load(1, 1500)
     model.eval()
     
     env = Environment()
