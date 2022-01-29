@@ -4,6 +4,7 @@ import cv2
 import requests
 import numpy as np
 from src.recover.environment import GameInfo
+from src.data_helper import DataProcessor
 
 TOKEN = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6NiwiaWF0IjoxNjQxNzYwMjk3LCJleHAiOjE2NDE3NzgyOTd9.blGitQyseOKYpXbL0Ucm3BV0IAH9lUOz7zsxtvcyuo8'
 END_POINT_API = 'https://procon2021.duckdns.org/procon2021'
@@ -36,16 +37,22 @@ class Socket:
         return response.json()
     
     def get_challenge_raw_info(self, challenge_id):
-        url = END_POINT_API + '/challenge/raw/{}'.format(challenge_id)
+        url = END_POINT_API + '/challenge/raw-challenge/{}'.format(challenge_id)
         response = requests.get(url, headers=self.headers, verify=False)
-        contents = response.content.strip().decode('utf-8').replace('# ', '').split('\n')
-        for i, content in enumerate(contents):
-            contents[i] = content.split(' ')
+        ppm_image = response.content
+        with open('output/temp_image.ppm', 'wb') as f:
+            f.write(ppm_image)
+            
+        headers = ppm_image.split(b'\n')[:6]
+        for i, header in enumerate(headers):
+            headers[i] = header.decode().replace('# ', '').split(' ')
             if i > 0:
-                for j, x in enumerate(contents[i]):
-                    contents[i][j] = int(x)
+                for j, x in enumerate(headers[i]):
+                    headers[i][j] = int(x)
                     
-        return contents
+        image = cv2.imread('output/temp_image.ppm', cv2.IMREAD_ANYCOLOR)
+        blocks = DataProcessor.split_image_to_blocks(image, (headers[1][0], headers[1][1]))
+        return headers, blocks
     
     def get_challenge_image_info(self, challenge_id):
         url = END_POINT_API + '/challenge/image/{}'.format(challenge_id)
@@ -62,11 +69,16 @@ class Socket:
         response = requests.get(url, headers=self.headers, verify=False)
         return response.json()
     
+    def del_all_answer(self, challenge_id):
+        url = END_POINT_API + '/solution/delete/{}'.format(challenge_id)
+        response = requests.delete(url, headers=self.headers, verify=False)
+        return response.json()
+    
     def send(self, challenge_id, data_text):
         url = END_POINT_API + '/solution/submit/{}'.format(challenge_id)
         header = self.headers.copy()
         header['Content-Type'] = 'text/plain'
-        data_text = '0000000000000000\n1\n00\n1\nD'
+        data_text = '000000000000\n0'
         response = requests.post(url, headers=header, data=data_text, verify=False)
         return response.json()
     
