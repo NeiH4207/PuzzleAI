@@ -440,13 +440,13 @@ class DataHelper:
         :return: dropped blocks
         """
         if prob is None:
-            prob = SystemRandom().uniform(0, 1) ** 2
+            prob = SystemRandom().uniform(0, 1)
+            prob = 4 * ((prob - 0.5) ** 3) + 0.5
         n_rows, n_cols = blocks.shape[0], blocks.shape[1]
-        n_steps = prob * n_rows * n_cols
+        n_steps = np.round(prob * n_rows * n_cols).astype(np.int)
         masked = np.zeros((n_rows, n_cols), dtype=np.uint8)
         dx = [0, 1, 0, -1]
         dy = [-1, 0, 1, 0]
-        
         block_size = blocks[0][0].shape
         dropped_blocks = np.empty(blocks.shape, dtype=np.ndarray)
         lost_block_labels = np.zeros((n_rows, n_cols))
