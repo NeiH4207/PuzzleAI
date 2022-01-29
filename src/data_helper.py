@@ -443,7 +443,7 @@ class DataHelper:
             prob = SystemRandom().uniform(0, 1)
             prob = 4 * ((prob - 0.5) ** 3) + 0.5
         n_rows, n_cols = blocks.shape[0], blocks.shape[1]
-        n_steps = np.round(prob * n_rows * n_cols).astype(np.int)
+        n_steps = prob * n_rows * n_cols
         masked = np.zeros((n_rows, n_cols), dtype=np.uint8)
         dx = [0, 1, 0, -1]
         dy = [-1, 0, 1, 0]
@@ -457,7 +457,6 @@ class DataHelper:
             _x, _y = x + dx[i], y + dy[i]
             if 0 <= _x < n_rows and 0 <= _y < n_cols:
                 next_position.add((_x, _y))
-        
         for i in range(int(n_steps)):
             next_pos = list(next_position)[SystemRandom().randint(0, len(next_position) - 1)]
             x = next_pos[0]
