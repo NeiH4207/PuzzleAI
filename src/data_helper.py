@@ -105,7 +105,7 @@ class DataHelper:
                     continue
                 # resize image if valid size
                 try:
-                    scale_rate = np.random() * 0.5 + 0.5
+                    scale_rate = np.random.rand() * 0.5 + 0.5
                     # cv2.imwrite('output/sample.png', image)
                     size = image.shape[:2]
                     w, h =  img_configs['max-size']
