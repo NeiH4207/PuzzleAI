@@ -34,7 +34,7 @@ class MCTS():
         self.mask = None
         self.blocks_rotated = None
     
-    def get_next_action(self, state, temp=1):
+    def get_next_action(self, state, temp=1, position=None):
         """
         This function performs numMCTSSims simulations of MCTS starting from
         state.
@@ -61,8 +61,8 @@ class MCTS():
         counts = []
         actions = []
         for action in self.Ps[s]: 
-            if (s, action) in self.Qsa:
-                counts.append(self.Qsa[(s, action)])
+            if (s, action) in self.Nsa:
+                counts.append(self.Nsa[(s, action)])
                 actions.append(action)
                         
         if temp == 0:

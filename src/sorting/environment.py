@@ -225,7 +225,7 @@ class Environment():
             cost_4 = min(abs(true_pos[0] - x1), state.shape[0] - abs(true_pos[0] - x1)) + \
                         min(abs(true_pos[1] - y1), state.shape[1] - abs(true_pos[1] - y1)) 
                          
-            reward = 1.0 * (cost_1 - cost_2) + cost_3 - cost_4 
+            reward = 1 * (cost_1 - cost_2) + cost_3 - cost_4 
         else:
             x, y = action[1]
             true_pos = (state.targets[x][y] // state.shape[1],\
@@ -315,15 +315,16 @@ class Environment():
         """
         Performs an action in the environment.
         """
-        s_name = state.get_string_presentation()
-        self.counter[s_name] = 1
-        next_s = state.copy()
+        # s_name = state.get_string_presentation()
+        # self.counter[s_name] = 1
+        # next_s = state.copy()
+        next_s = state
         if action[0] == 'swap':
             x1, y1, x2, y2 = action[1]
             next_s.blocks[x1][y1], next_s.blocks[x2][y2] = \
-                deepcopy([next_s.blocks[x2][y2], next_s.blocks[x1][y1]])
+                [next_s.blocks[x2][y2], next_s.blocks[x1][y1]]
             next_s.targets[x1][y1], next_s.targets[x2][y2] = \
-                deepcopy([next_s.targets[x2][y2], next_s.targets[x1][y1]])
+                [next_s.targets[x2][y2], next_s.targets[x1][y1]]
             next_s.n_swaps += 1
             pos = (x2, y2)
             next_s.curr_position = pos
@@ -333,7 +334,7 @@ class Environment():
             next_s.n_chooses += 1
         next_s.depth += 1
         # state.actions.append(action)
-        next_s.set_string_presentation()
+        # next_s.set_string_presentation()
         next_s.last_action = action
         return next_s
     

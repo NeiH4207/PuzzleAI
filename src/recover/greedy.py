@@ -1,5 +1,6 @@
 from copy import deepcopy
 import numpy as np
+from torch import poisson
 from src.data_helper import DataProcessor
 from multiprocessing import Pool
 
@@ -17,7 +18,7 @@ class Greedy():
         self.mask = None
         self.blocks_rotated = None
         
-    def get_next_action(self, state):
+    def get_next_action(self, state, position=None):
         # state = state.copy()
         if self.mask is None:
             self.mask = np.zeros((state.block_size[0] * 2, state.block_size[1] * 2, 3),
@@ -37,7 +38,10 @@ class Greedy():
         stop = False
         probs = []
         actions = []
-        valid_block_pos, best_pos, ranks = self.env.get_valid_block_pos(state, kmax=self.n_bests, last_state=False)
+        valid_block_pos, best_pos, ranks = self.env.get_valid_block_pos(state, 
+                                                                        kmax=self.n_bests, 
+                                                                        last_state=False,
+                                                                        position=position)
         for x, y in valid_block_pos:
             for _x, _y in lost_positions:
                 # get dropped_subblocks 2x2 from dropped_blocks
