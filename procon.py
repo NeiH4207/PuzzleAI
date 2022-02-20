@@ -14,18 +14,18 @@ import argparse
 def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument("--state-path", type=str, default="output/states/")
-    parser.add_argument("-f", "--item-path", type=str, default="Match_BKA_Image.bin")
+    parser.add_argument("-f", "--item-path", type=str, default="natural_5.bin")
     parser.add_argument("--model-name", type=str, default="model_2_0.pt")
     parser.add_argument("--output-path", type=str, default="./output/recovered_images/")
     parser.add_argument(
         "-a", "--algorithm", type=str, default="standard", help="algorithm to use"
     )
-    parser.add_argument("-v", "--verbose", action="store_true")
+    parser.add_argument("-v", "--verbose", action="store_true", default=False)
     parser.add_argument("-t", "--sleep", type=float, default=0.0)
     parser.add_argument("-k", "--skip", type=int, default=10)
 
     parser.add_argument("-r", "--rate", type=str, default="8/2")
-    parser.add_argument("-c", "--max_choose", type=int, default=1000)
+    parser.add_argument("-c", "--max_choose", type=int, default=128)
     
     args = parser.parse_args()
     return args
@@ -36,9 +36,14 @@ def main():
     game_state = GameState(state.original_blocks, state.inverse)
     game_state.max_choose = args.max_choose
     game_state.save_image()
-    env = GameEnvironment(
-        r1=int(args.rate.split("/")[0]), r2=int(args.rate.split("/")[1])
-    )
+    if state.choose_swap_ratio:
+        env = GameEnvironment(
+            r1=state.choose_swap_ratio[0], r2=state.choose_swap_ratio[1]
+        )
+    else:
+        env = GameEnvironment(
+            r1=int(args.rate.split("/")[0]), r2=int(args.rate.split("/")[1])
+        )
 
     mcts = GameMCTS(env, n_sim=20, c_puct=100, verbose=False)
     astar = Astar(env, verbose=False)

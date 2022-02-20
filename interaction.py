@@ -57,8 +57,6 @@ def read(socket, tournament_name, round_name, match_name):
     game_info.image_size = challenge_info[4]
     game_info.max_image_point_value = challenge_info[5]
     game_info.original_block_size = image_blocks[0].shape[:2]
-    # image_blocks = image_blocks.reshape(game_info.block_dim[0], game_info.block_dim[1],
-    #                game_info.original_block_size[0], game_info.original_block_size[1], -1)
     game_info.original_blocks = image_blocks.tolist()
     game_info.mode = 'rgb'
     return game_info

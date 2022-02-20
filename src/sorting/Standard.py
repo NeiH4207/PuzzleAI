@@ -114,6 +114,143 @@ class Standard():
             self.sequential_mode =  True
         return self.get_action(state)
     
+    def execute_two_last_row(self, state):
+        
+        x_source, y_source = self.curr_pos[0], self.curr_pos[1]
+        x_cursor, y_cursor = self.cursor[0], self.cursor[1]
+        value = state.targets[x_source][y_source]
+        x_target, y_target = value // self.shape[1], value % self.shape[1]
+        
+            
+        if y_target < self.shape[1] - 2:
+            value_2 = value + self.shape[0]
+            x_source_2, y_source_2 = None, None
+                
+            for i in range(self.shape[0] - 2, self.shape[0]):
+                for j in range(self.shape[1]):
+                    if state.targets[i][j] == value_2:
+                        x_source_2, y_source_2 = i, j
+                        break
+                if x_source_2 is not None:
+                    break
+            if x_source_2 is None:
+                print("Error: cannot find source 2")
+            else:
+                if y_source_2 == y_target and x_source_2 == x_target + 1 and \
+                    y_source == y_target and x_source == x_target:
+                    self.set_next_position(state, self.curr_pos)
+                    return self.get_action(state)
+            if x_source == self.shape[0] - 2:
+                if x_cursor == self.shape[0] - 2:
+                    return self.move_down()
+                else:
+                    if y_cursor < y_source:
+                        return self.move_right()
+                    elif y_cursor > y_source:
+                        return self.move_left()
+                    else:
+                        return self.move_up()
+            else:
+                if y_target < y_source:
+                    if x_cursor == self.shape[0] - 1:
+                        return self.move_up();
+                    else:
+                        if y_cursor < y_source:
+                            return self.move_right()
+                        elif y_cursor > y_source:
+                            return self.move_left()
+                        else:
+                            self.sequential_mode = True
+                            for _ in range(y_source - y_target - 1):
+                                self.action_list.extend(
+                                    [self.move_left(), self.move_down(), 
+                                        self.move_right(), self.move_up(),
+                                        self.move_left()]
+                                )
+                            self.action_list.extend(
+                                [self.move_left(), self.move_down(), 
+                                    self.move_right()]
+                            )
+                            return self.get_action(state)
+                else:
+                    # x_target_2, y_target_2 = value_2 // self.shape[1], value_2 % self.shape[1]
+                    if state.targets[self.shape[0] - 2][y_target] == value + self.shape[0]:
+                        if x_cursor == self.shape[0] - 1:
+                            return self.move_up()
+                        self.sequential_mode = True
+                        # left down right right up left left
+                        self.action_list.extend(
+                            [self.move_left(), self.move_down(),
+                                self.move_right(), self.move_right(),
+                                self.move_up(), self.move_left(), self.move_left()]
+                        )
+                        return self.get_action(state)
+                    else:
+                        self.sequential_mode = True
+                        if x_source_2 == self.shape[0] - 2:
+                            if x_cursor == self.shape[0] - 2:
+                                self.action_list.append(self.move_down())
+                            if y_source_2 - y_cursor > 0:
+                                for _ in range(y_source_2 - y_cursor):
+                                    self.action_list.append(self.move_right())
+                            else:
+                                for _ in range(y_cursor - y_source_2):
+                                    self.action_list.append(self.move_left())
+                            self.action_list.append(self.move_up())
+                        else:
+                            if x_cursor == self.shape[0] - 1:
+                                self.action_list.append(self.move_up())
+                            if y_source_2 - y_cursor > 0:
+                                for _ in range(y_source_2 - y_cursor):
+                                    self.action_list.append(self.move_right())
+                            else:
+                                for _ in range(y_cursor - y_source_2):
+                                    self.action_list.append(self.move_left())
+                        
+                        for _ in range(y_source_2 - y_target - 1):
+                            self.action_list.extend(
+                                [self.move_left(), self.move_down(), 
+                                    self.move_right(), self.move_up(),
+                                    self.move_left()]
+                            )
+                        self.action_list.extend(
+                            [self.move_left(), self.move_down(), 
+                                self.move_right()]
+                        )
+                            
+                        return self.get_action(state)
+        else:
+            if x_cursor == self.shape[0] - 2:
+                if y_cursor == self.shape[0] - 2:
+                    return self.move_down()
+                else:
+                    return self.move_left()
+            elif y_cursor == self.shape[1] - 2:
+                return self.move_right()
+            
+            values = [self.shape[1] * (self.shape[0] - 1) - 2,
+                      self.shape[1] * (self.shape[0] - 1) - 1,
+                      self.shape[1] * self.shape[0] - 2,
+                        self.shape[1] * self.shape[0] - 1]
+            if values[1] != state.targets[self.shape[0] - 2][self.shape[1] - 1]:
+                    self.sequential_mode = True
+                    self.action_list.extend(
+                        [self.move_up(), self.move_left(),
+                            self.move_down(), self.move_right()])
+                    return self.get_action(state)
+            else:
+                if values[0] != state.targets[self.shape[0] - 2][self.shape[1] - 2]:
+                    self.sequential_mode = True
+                    self.action_list.extend(
+                        [('choose', (self.shape[0] - 2, self.shape[1] - 2)),
+                            ('swap', (self.shape[0] - 2, self.shape[1] - 2, 
+                                      self.shape[0] - 1, self.shape[1] - 2))])
+                    return self.get_action(state)
+            
+            return self.get_action(state)                      
+                            
+                        
+    
     def run_sequential(self):
         action = self.action_list[0]
         self.action_list = self.action_list[1:]
@@ -132,8 +269,9 @@ class Standard():
         if self.sequential_mode:
             return self.run_sequential()
         
-        if x_target == self.shape[0] - 1:
-            return self.execute_last_row(state)
+        
+        if x_target == self.shape[0] - 2:
+            return self.execute_two_last_row(state)
         
         if x_source == x_target and y_source == y_target:
             self.set_next_position(state, self.curr_pos)
@@ -163,7 +301,19 @@ class Standard():
         elif x_source < x_cursor:
             return self.move_up()
         elif y_source != y_target:
-            return self.move_right()
+            if y_source > y_target:
+                if y_source - y_target < y_target - (y_source - self.shape[1]):
+                    return self.move_right()
+                else:
+                    return self.move_left()
+            else:
+                if y_target - y_source < y_source - (y_target - self.shape[1]):
+                    return self.move_left()
+                else:
+                    return self.move_right()
+        else:
+            if abs(y_cursor -  y_target + self.shape[1]) % self.shape[1] > 1:
+                return self.move_left()
         if (y_target == self.shape[1] - 1):
             if (y_source + 1) % self.shape[1] == y_cursor:
                 self.sequential_mode =  True

@@ -34,7 +34,7 @@ def main():
     configs['num-dataset'] = 200
     file_dir = "input/data/64x64/images/"
     
-    for i in range(2, configs['num-dataset']):
+    for i in range(0, configs['num-dataset']):
         file_name = "image_data_batch_{}.bin".format(i)
         trainset, testset = get_dataset(file_dir, file_name, i, saved=False)
         print("Train set size: ", len(trainset['data']))
