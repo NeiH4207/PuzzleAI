@@ -7,18 +7,24 @@ import warnings
 warnings.filterwarnings("ignore")
 import argparse
 
+'''
+python3 interaction.py \
+    -s 'Computer_Tour' -r Computer_Round -p 'r' \
+         --token '' \
+              -m Natural_8
+'''
+
 def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument("--sol-path", type=str, default="output/solutions")
-    parser.add_argument("--model-name", type=str, default="model_2_0.pt")
     parser.add_argument("--output-path", type=str, default="./output/recovered_images/")
     parser.add_argument( "--token", type=str, 
-        default="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6NiwiaWF0IjoxNjQzNDQ2NDI4LCJleHAiOjE2NDM0NjQ0Mjh9.sWUlY70rOMV3aF_NwmAOUmmcq9YBSZ51KEJTsNFecXQ"
+        default="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6NSwiaWF0IjoxNjQ2MzIwMDA4LCJleHAiOjE2NDYzMzgwMDh9.pNvyYDhfrZ3r5vcKzPPm9gLRsiWdRZ3mRiWB1He-ai4"
     )
-    parser.add_argument("-s", "--tournament_name", type=str, default='BKA_Tour')
-    parser.add_argument("-r", "--round_name", type=str, default='ROUND_BKA')
-    parser.add_argument("-m", "--match_name", type=str, default='Match_BKA_Image')
-    parser.add_argument("-p", "--mode", type=str, default='show')
+    parser.add_argument("-s", "--tournament_name", type=str, default='Computer_Tour')
+    parser.add_argument("-r", "--round_name", type=str, default='Computer_Round')
+    parser.add_argument("-m", "--match_name", type=str, default='Natural_18')
+    parser.add_argument("-p", "--mode", type=str, default='w')
     args = parser.parse_args()
     return args
 
@@ -40,20 +46,27 @@ def read(socket, tournament_name, round_name, match_name):
             break
     round_info = socket.get_round_info(round_id)
     matches = round_info['Matches']
+    match_id = None
     for match in matches:
         if match['name'] == match_name:
             match_id = match['id']
             break
+    if match_id is None:
+        print("No match found")
+        return
     match_info = socket.get_match_info(match_id)
     id_challenge = match_info['id_challenge']
-    challenge_info, image_blocks = socket.get_challenge_raw_info(id_challenge)
+    # id_challenge = 3
+    challenge_info, image_blocks = socket.get_raw_info(id_challenge)
+    # challenge_info = socket.get_challenge_raw_info(id_challenge)
+    # image_blocks = socket.get_challenge_image_info(id_challenge)
     
     game_info = GameInfo()
     game_info.name = match_name
     game_info.challenge_id = id_challenge
     game_info.block_dim = tuple(challenge_info[1])
-    game_info.max_n_chooses = challenge_info[2][0]
-    game_info.choose_swap_ratio = challenge_info[3]
+    game_info.max_n_selects = challenge_info[2][0]
+    game_info.select_swap_ratio = challenge_info[3]
     game_info.image_size = challenge_info[4]
     game_info.max_image_point_value = challenge_info[5]
     game_info.original_block_size = image_blocks[0].shape[:2]

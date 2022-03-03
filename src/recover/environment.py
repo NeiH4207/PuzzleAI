@@ -17,8 +17,8 @@ class GameInfo():
     def __init__(self) -> None:
         self.block_dim = None
         self.block_size = None
-        self.max_n_chooses = None
-        self.choose_swap_ratio = None
+        self.max_n_selects = None
+        self.select_swap_ratio = None
         self.image_size = None
         self.max_image_point_value = None
         self.blocks = None    
@@ -35,8 +35,8 @@ class GameInfo():
             'block_dim': self.block_dim,
             'original_block_size': self.original_block_size,
             'original_blocks': self.original_blocks,
-            'max_n_chooses': self.max_n_chooses,
-            'choose_swap_ratio': self.choose_swap_ratio,
+            'max_n_selects': self.max_n_selects,
+            'select_swap_ratio': self.select_swap_ratio,
             'image_size': self.image_size,
             'max_image_point_value': self.max_image_point_value,
             'original_blocks': self.original_blocks,
@@ -60,8 +60,8 @@ class GameInfo():
         self.block_dim = data['block_dim']
         self.original_block_size = data['original_block_size']
         self.original_blocks = data['original_blocks']
-        self.max_n_chooses = data['max_n_chooses']
-        self.choose_swap_ratio = data['choose_swap_ratio']
+        self.max_n_selects = data['max_n_selects']
+        self.select_swap_ratio = data['select_swap_ratio']
         self.image_size = data['image_size']
         self.max_image_point_value = data['max_image_point_value']
         self.original_blocks = np.array(data['original_blocks'], dtype='uint8')
@@ -148,7 +148,8 @@ class State(GameInfo):
         state.actions = deepcopy(self.actions)
         state.last_action = self.last_action
         state.inverse = deepcopy(self.inverse)
-        state.choose_swap_ratio = self.choose_swap_ratio
+        state.select_swap_ratio = self.select_swap_ratio
+        state.max_n_selects = self.max_n_selects
         state.mode = self.mode
         state.name = self.name
         return state

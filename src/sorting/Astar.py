@@ -24,6 +24,8 @@ class Astar():
         rewards = []
         for action in actions:
             rewards.append(self.env.get_reward(state, action))
+        if rewards == []:
+            return None
         best_actions = np.array(np.argwhere(rewards == np.max(rewards)), dtype=object).flatten()
         best_action = np.random.choice(best_actions)
         return actions[best_action]

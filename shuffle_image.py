@@ -43,8 +43,8 @@ def main():
     game_info = GameInfo()
     game_info.name = args.filename.split('.')[0]
     game_info.block_dim = block_dim
-    game_info.max_n_chooses = block_dim[0] * block_dim[1]
-    game_info.choose_swap_ratio = [5, 5]
+    game_info.max_n_selects = block_dim[0] * block_dim[1]
+    game_info.select_swap_ratio = [5, 5]
     game_info.image_size = image_size
     game_info.max_image_point_value = [255, 255, 255]
     game_info.original_block_size = block_size

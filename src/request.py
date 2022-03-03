@@ -6,8 +6,8 @@ import numpy as np
 from src.recover.environment import GameInfo
 from src.data_helper import DataProcessor
 
-TOKEN = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6NiwiaWF0IjoxNjQxNzYwMjk3LCJleHAiOjE2NDE3NzgyOTd9.blGitQyseOKYpXbL0Ucm3BV0IAH9lUOz7zsxtvcyuo8'
-END_POINT_API = 'https://procon2021.duckdns.org/procon2021'
+# TOKEN = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6MSwiaWF0IjoxNjQ1OTU2MzYyLCJleHAiOjE2NDU5NzQzNjJ9.a_O5bxFBlPZZRamp5XaiLlxcH7dLbWoHlhP7cZGehGA'
+END_POINT_API = 'http://112.137.129.202:8016'
 
 class Socket:
     def __init__(self, token):
@@ -36,7 +36,7 @@ class Socket:
         response = requests.get(url, headers=self.headers, verify=False)
         return response.json()
     
-    def get_challenge_raw_info(self, challenge_id):
+    def get_raw_info(self, challenge_id):
         url = END_POINT_API + '/challenge/raw-challenge/{}'.format(challenge_id)
         response = requests.get(url, headers=self.headers, verify=False)
         ppm_image = response.content
@@ -51,9 +51,22 @@ class Socket:
                     headers[i][j] = int(x)
                     
         image = cv2.imread('output/temp_image.ppm', cv2.IMREAD_ANYCOLOR)
+        print(headers)
+        # headers[1][0], headers[1][1] = headers[1][1], headers[1][0]
         blocks = DataProcessor.split_image_to_blocks(image, (headers[1][0], headers[1][1]))
         return headers, blocks
     
+    def get_challenge_raw_info(self, challenge_id):
+        url = END_POINT_API + '/challenge/raw/{}'.format(challenge_id)
+        response = requests.get(url, headers=self.headers, verify=False)
+        contents = response.content.strip().decode('utf-8').replace('# ', '').split('\n')
+        for i, content in enumerate(contents):
+            contents[i] = content.split(' ')
+            if i > 0:
+                for j, x in enumerate(contents[i]):
+                    contents[i][j] = int(x)
+                    
+        return contents
     def get_challenge_image_info(self, challenge_id):
         url = END_POINT_API + '/challenge/image/{}'.format(challenge_id)
         response = requests.get(url, headers=self.headers, verify=False)
@@ -78,7 +91,6 @@ class Socket:
         url = END_POINT_API + '/solution/submit/{}'.format(challenge_id)
         header = self.headers.copy()
         header['Content-Type'] = 'text/plain'
-        data_text = '000000000000\n0'
         response = requests.post(url, headers=header, data=data_text, verify=False)
         return response.json()
     
