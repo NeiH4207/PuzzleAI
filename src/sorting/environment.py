@@ -13,8 +13,8 @@ class Solution(object):
         super().__init__()
         self.name = name
         self.angles = []
-        self.num_chooses = 0
-        self.choose_list = []
+        self.num_selects = 0
+        self.select_list = []
         self.swap_arrays = []
         self.curr_postion = (0, 0)
         self.shape = shape
@@ -24,23 +24,29 @@ class Solution(object):
         return hex_code[num]
     
     def store_action(self, action):
-        if action[0] == 'choose':
-            self.num_chooses += 1
-            self.choose_list.append(self.int2hex(action[1][0]) + self.int2hex(action[1][1]))
+        if action[0] == 'select':
+            self.num_selects += 1
+            self.select_list.append(self.int2hex(action[1][0]) + self.int2hex(action[1][1]))
             self.swap_arrays.append("")
             self.curr_postion = action[1]
         else:
-            vx = (action[1][0] - self.curr_postion[0] + self.shape[0]) % self.shape[0]
-            vy = (action[1][1] - self.curr_postion[1] + self.shape[1]) % self.shape[1]
-            if vx == 1:
-                self.swap_arrays[-1] += 'D'
-            elif vx == self.shape[0] - 1:
-                self.swap_arrays[-1] += 'U'
-            elif vy == 1:
-                self.swap_arrays[-1] += 'R'
-            elif vy == self.shape[1] - 1:
-                self.swap_arrays[-1] += 'L'
+            vx = (action[1][2] - action[1][0] + self.shape[0]) % self.shape[0]
+            vy = (action[1][3] - action[1][1] + self.shape[1]) % self.shape[1]
             
+            if vx != 0:
+                if action[1][2] - 1 == action[1][0] or \
+                    action[1][2] + self.shape[0] - 1 == action[1][0]:
+                    self.swap_arrays[-1] += 'D'
+                else:
+                    self.swap_arrays[-1] += 'U'
+            else:
+                if action[1][3] - 1 == action[1][1] or \
+                    action[1][3] + self.shape[1] - 1 == action[1][1]:
+                    self.swap_arrays[-1] += 'R'
+                else:
+                    self.swap_arrays[-1] += 'L'
+        # print(self.swap_arrays[-1])
+        
     def save_angles(self, inverse):
         self.angles = []
         for i in range(len(inverse)):
@@ -52,9 +58,10 @@ class Solution(object):
     def to_json(self):
         data = {
             "angles": ''.join([str(x) for x in self.angles]),
-            "num_chooses": self.num_chooses,
+            "num_selects": self.num_selects,
             "swap_arrays": self.swap_arrays
         }
+        # print(data)
         return data
     
     def save_to_json(self, path, file_name):
@@ -76,10 +83,10 @@ class Solution(object):
             
         with open(file_path, "w") as f:
             f.write(''.join([str(x) for x in self.angles])+'\n')
-            f.write(str(self.num_chooses))
+            f.write(str(self.num_selects))
             f.write("\n")
-            for i in range(self.num_chooses):
-                f.write(str(self.choose_list[i]))
+            for i in range(self.num_selects):
+                f.write(str(self.select_list[i]))
                 f.write("\n")
                 f.write(str(len(self.swap_arrays[i])))
                 f.write("\n")
@@ -90,7 +97,7 @@ class Solution(object):
         with open(file_path, "r") as f:
             data = json.load(f)
         self.angles = data["angles"]
-        self.num_chooses = data["num_chooses"]
+        self.num_selects = data["num_selects"]
         self.swap_arrays = data["swap_arrays"]
 
 class State:
@@ -110,8 +117,8 @@ class State:
             self.actions = []
             self.last_action = (0, 0)
             self.curr_position = None
-            self.n_chooses = 0
-            self.max_choose = self.shape[0] * self.shape[1] // 2
+            self.n_selects = 0
+            self.max_select = self.shape[0] * self.shape[1] // 2
             self.n_swaps = 0
             self.mode = 'rgb'
             self.original_distance = 0
@@ -126,10 +133,10 @@ class State:
                 self.original_blocks[x][y] = np.rot90(self.original_blocks[x][y], 
                                                       k=angle)
                 self.targets[x][y] = i * self.shape[1] + j
-        self.choose_actions = []
+        self.select_actions = []
         for i in range(self.shape[0]):
             for j in range(self.shape[1]):
-                self.choose_actions.append(('choose',(i, j)))
+                self.select_actions.append(('select',(i, j)))
         self.blocks = np.zeros((self.shape[0], self.shape[1], 64, 64, 3), dtype='uint8')
         for i in range(self.shape[0]):
             for j in range(self.shape[1]):
@@ -147,17 +154,17 @@ class State:
         state.original_blocks = self.original_blocks
         state.blocks = deepcopy(self.blocks)
         state.targets = deepcopy(self.targets)
-        state.choose_actions = self.choose_actions
+        state.select_actions = self.select_actions
         state.shape = self.shape
         state.depth = self.depth
         state.probs = self.probs
         state.probs = deepcopy(self.probs)
-        state.actions = deepcopy(self.actions)
+        # state.actions = deepcopy(self.actions)
         state.last_action = deepcopy(self.last_action)
         state.mode = self.mode
         state.curr_position = self.curr_position
-        state.n_chooses = self.n_chooses
-        state.max_choose = self.max_choose
+        state.n_selects = self.n_selects
+        state.max_select = self.max_select
         state.n_swaps = self.n_swaps
         state.name = self.name
         state.original_distance = self.original_distance
@@ -178,18 +185,18 @@ class State:
         
     def show(self):
         # print targets pretty format
+        # print('-----------------------------------------------------')
+        # if self.curr_position:
+        #     print('curr_position: {}, value: {}'.format(self.curr_position, self.targets[self.curr_position[0]][self.curr_position[1]]))
+        # for i in range(self.shape[0]):
+        #     for j in range(self.shape[1]):
+        #         print('{:>3d}'.format(self.targets[i][j]), end='')
+        #     print(' | ', end='')
+        #     for j in range(self.shape[1]):
+        #         print('{:>3d}'.format(j + i * self.shape[1]), end='')
+        #     print()
         print('-----------------------------------------------------')
-        if self.curr_position:
-            print('curr_position: {}, value: {}'.format(self.curr_position, self.targets[self.curr_position[0]][self.curr_position[1]]))
-        for i in range(self.shape[0]):
-            for j in range(self.shape[1]):
-                print('{:>3d}'.format(self.targets[i][j]), end='')
-            print(' | ', end='')
-            for j in range(self.shape[1]):
-                print('{:>3d}'.format(j + i * self.shape[1]), end='')
-            print()
-        print('-----------------------------------------------------')
-        print('Number of chooses: {}'.format(self.n_chooses))
+        print('Number of selects: {}'.format(self.n_selects))
         print('Number of swaps: {}'.format(self.n_swaps))
         
 class Environment():
@@ -199,8 +206,8 @@ class Environment():
     def __init__(self, r1, r2, name='recover_image'):
         self.name = name
         self.state = None
-        self.r1 = - r1 / (r1 + r2)
-        self.r2 = - r2 / (r1 + r2)
+        self.r1 = r1 / (r1 + r2)
+        self.r2 = r2 / (r1 + r2)
         self.reset()
         self.next_step = {}
         self.counter = {}
@@ -224,16 +231,49 @@ class Environment():
                         min(abs(true_pos[1] - y2), state.shape[1] - abs(true_pos[1] - y2))
             cost_4 = min(abs(true_pos[0] - x1), state.shape[0] - abs(true_pos[0] - x1)) + \
                         min(abs(true_pos[1] - y1), state.shape[1] - abs(true_pos[1] - y1)) 
-                         
-            reward = 1 * (cost_1 - cost_2) + cost_3 - cost_4 
+                 
+            reward = 0.5 * (cost_1 - cost_2) + (cost_3 - cost_4) \
+                - self.r2 * 0.001
         else:
-            x, y = action[1]
-            true_pos = (state.targets[x][y] // state.shape[1],\
-                            state.targets[x][y] % state.shape[1])
-            cost_1 = min(abs(true_pos[0] - x), state.shape[0] - abs(true_pos[0] - x)) + \
-                        min(abs(true_pos[1] - y), state.shape[1] - abs(true_pos[1] - y))
+            # x, y = action[1]
+            # true_pos = (state.targets[x][y] // state.shape[1],\
+            #                 state.targets[x][y] %    state.shape[1])
+            # cost_1 = min(abs(true_pos[0] - x), state.shape[0] - abs(true_pos[0] - x)) + \
+            #             min(abs(true_pos[1] - y), state.shape[1] - abs(true_pos[1] - y))
                 
-            reward = self.r1 * 0.001
+            reward = - self.r1 * 0.001
+        # mn = - 2 - min(self.r1, self.r2)
+        # mx = 2 + max(self.r1, self.r2)
+        return reward
+    
+    
+    def get_strict_reward(self, state, action):
+        reward = 0
+        if action[0] == 'swap':
+            x1, y1, x2, y2 = action[1]
+            true_pos = (state.targets[x1][y1] // state.shape[1],\
+                          state.targets[x1][y1] % state.shape[1])
+            cost_1 = min(abs(true_pos[0] - x1), state.shape[0] - abs(true_pos[0] - x1)) + \
+                        min(abs(true_pos[1] - y1), state.shape[1] - abs(true_pos[1] - y1))
+            cost_2 = min(abs(true_pos[0] - x2), state.shape[0] - abs(true_pos[0] - x2)) + \
+                        min(abs(true_pos[1] - y2), state.shape[1] - abs(true_pos[1] - y2))
+            true_pos = (state.targets[x2][y2] // state.shape[1],\
+                        state.targets[x2][y2] % state.shape[1])
+            cost_3 = min(abs(true_pos[0] - x2), state.shape[0] - abs(true_pos[0] - x2)) + \
+                        min(abs(true_pos[1] - y2), state.shape[1] - abs(true_pos[1] - y2))
+            cost_4 = min(abs(true_pos[0] - x1), state.shape[0] - abs(true_pos[0] - x1)) + \
+                        min(abs(true_pos[1] - y1), state.shape[1] - abs(true_pos[1] - y1)) 
+                         
+            reward = (cost_1 - cost_2) + (cost_3 - cost_4) \
+                - self.r2
+        else:
+            # x, y = action[1]
+            # true_pos = (state.targets[x][y] // state.shape[1],\
+            #                 state.targets[x][y] %    state.shape[1])
+            # cost_1 = min(abs(true_pos[0] - x), state.shape[0] - abs(true_pos[0] - x)) + \
+            #             min(abs(true_pos[1] - y), state.shape[1] - abs(true_pos[1] - y))
+                
+            reward = - self.r1
         # mn = - 2 - min(self.r1, self.r2)
         # mx = 2 + max(self.r1, self.r2)
         # return (reward - mn) / (mx - mn)
@@ -243,7 +283,7 @@ class Environment():
         haminton_distance = self.get_haminton_distance(state)
         mahattan_distance = self.get_mahattan_distance(state)
         reward = (state.original_distance - mahattan_distance) / state.original_distance / \
-             np.log(1 + - state.n_chooses * self.r1 - state.n_swaps * self.r2)
+             np.log(1 + - state.n_selects * self.r1 - state.n_swaps * self.r2)
         return reward
     
     def get_haminton_distance(self, state):
@@ -270,12 +310,12 @@ class Environment():
     
     def get_game_ended(self, state):
         mahattan_distance = self.get_mahattan_distance(state)
-        if state.n_chooses > state.max_choose:
+        if state.n_selects > state.max_select:
             return state.original_distance - mahattan_distance + \
-                state.n_chooses * self.r1 + state.n_swaps * self.r2
+                state.n_selects * self.r1 + state.n_swaps * self.r2
         if mahattan_distance == 0:
             return state.original_distance + \
-                state.n_chooses * self.r1 + state.n_swaps * self.r2
+                state.n_selects * self.r1 + state.n_swaps * self.r2
         
         return False
                 
@@ -303,12 +343,13 @@ class Environment():
                     if s in self.counter:
                         continue
                     actions.append(('swap', (x1, y1, x2, y2)))
-        for action in state.choose_actions:
-            x1, y1 = action[1]
-            value = x1 * state.shape[1] + y1
-            if action[1] != state.curr_position and \
-                value != state.targets[x1][y1]:
-                actions.append(action)
+        if state.n_selects < state.max_select:
+            for action in state.select_actions:
+                x1, y1 = action[1]
+                value = x1 * state.shape[1] + y1
+                if action[1] != state.curr_position and \
+                    value != state.targets[x1][y1]:
+                    actions.append(action)
         return actions
     
     def step(self, state, action):
@@ -317,34 +358,11 @@ class Environment():
         """
         # s_name = state.get_string_presentation()
         # self.counter[s_name] = 1
-        # next_s = state.copy()
-        next_s = state
-        if action[0] == 'swap':
-            x1, y1, x2, y2 = action[1]
-            next_s.blocks[x1][y1], next_s.blocks[x2][y2] = \
-                [next_s.blocks[x2][y2], next_s.blocks[x1][y1]]
-            next_s.targets[x1][y1], next_s.targets[x2][y2] = \
-                [next_s.targets[x2][y2], next_s.targets[x1][y1]]
-            next_s.n_swaps += 1
-            pos = (x2, y2)
-            next_s.curr_position = pos
-        else:
-            position = action[1]
-            next_s.curr_position = position
-            next_s.n_chooses += 1
-        next_s.depth += 1
-        # state.actions.append(action)
-        # next_s.set_string_presentation()
-        next_s.last_action = action
-        return next_s
-    
-    def soft_update_state(self, state, action):
-        """
-        Performs an action in the environment.
-        """
         next_s = state.copy()
         if action[0] == 'swap':
             x1, y1, x2, y2 = action[1]
+            next_s.blocks[x1][y1], next_s.blocks[x2][y2] = \
+                deepcopy([next_s.blocks[x2][y2], next_s.blocks[x1][y1]])
             next_s.targets[x1][y1], next_s.targets[x2][y2] = \
                 deepcopy([next_s.targets[x2][y2], next_s.targets[x1][y1]])
             next_s.n_swaps += 1
@@ -353,9 +371,10 @@ class Environment():
         else:
             position = action[1]
             next_s.curr_position = position
-            next_s.n_chooses += 1
+            next_s.n_selects += 1
         next_s.depth += 1
         # state.actions.append(action)
         next_s.set_string_presentation()
         next_s.last_action = action
         return next_s
+    

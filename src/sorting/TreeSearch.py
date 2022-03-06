@@ -25,18 +25,16 @@ class TreeSearch():
         self.parent = {}
     
     def search(self, state, k):
-        
-        s = state.get_string_presentation()
         state = state.copy()
         
-        if self.verbose:
-            state.save_image()
+        # if self.verbose:
+        #     state.save_image()
         # state.show()
         actions = self.env.get_available_actions(state)
     
         rewards = []
         for action in actions:
-            rewards.append(self.env.get_reward(state, action))
+            rewards.append(self.env.get_strict_reward(state, action))
         
         if len(rewards) == 0:
             return None, 100
@@ -46,7 +44,7 @@ class TreeSearch():
             best_action = np.random.choice(best_actions)
             return actions[best_action], rewards[best_action]
         else:
-            # choose the action with the 5 highest probabilities
+            # select the action with the 5 highest probabilities
             # probs = np.array(rewards) / np.sum(rewards)
             # dirichlet_noise = dirichlet(np.ones(len(actions)) * 0.3)
             # probs = np.array(probs) * 0.9 + np.array(dirichlet_noise) * 0.1
@@ -58,18 +56,12 @@ class TreeSearch():
                 _state = self.env.step(state, action)
                 act, v = self.search(_state, k - 1)
                 next_actions.append(act)
-                next_v.append(v + 0.99 * rewards[top_index[i]])
+                next_v.append(v + rewards[top_index[i]])
             best_indices = np.argwhere(next_v == np.max(next_v)).flatten()
             best_index = np.random.choice(best_indices)
             return top_actions[best_index], next_v[best_index]
                         
     def get_action(self, state):
-        s = state.get_string_presentation()
-        # if self.parent[s] is None:
-        #     self.depth[s] = 0
-        # else:
-        #     self.depth[s] = self.depth[self.parent[s]] + 1
-        
         action, v = self.search(state, self._depth)
         # print(action, v)
         return action

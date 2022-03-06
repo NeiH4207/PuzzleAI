@@ -21,11 +21,11 @@ def parse_args():
     parser.add_argument('--model-path', type=str, default='./trainned_models/')
     parser.add_argument('--model-name', type=str, default='model_2_0.pt')
     parser.add_argument('--output-path', type=str, default='./output/recovered_images/')
-    parser.add_argument('-f', '--file-name', type=str, default='natural_9')
+    parser.add_argument('-f', '--file-name', type=str, default='Natural_5')
     parser.add_argument('--image-size-out', type=int, default=(512, 512))   
     parser.add_argument('-s', '--block-size', type=int, default=(32, 32))
     parser.add_argument('-a', '--algorithm', type=str, default='greedy')
-    parser.add_argument('-v', '--verbose', action='store_true', default=True)
+    parser.add_argument('-v', '--verbose', action='store_true')
     parser.add_argument('-m', '--monitor', action='store_true')
     parser.add_argument('-t', '--threshold', type=float, default=1.0)
     parser.add_argument('-j', '--n_jumps', type=float, default=0)
@@ -41,16 +41,16 @@ def main():
     state.save_image()
     model = VGG('VGG7')
     try:
-        model.load_checkpoint(0, 944)
+        model.load_checkpoint(0, 938)
     except:
-        model.load(0, 944)
+        model.load(0, 938)
         
     model.eval()
     
     env = Environment()
     if args.algorithm == 'greedy':
         algo = Greedy(env, model, verbose=args.verbose, 
-                    n_bests=4, threshold=args.threshold)
+                    n_bests=3, threshold=args.threshold)
     elif args.algorithm == 'mcts':
         algo = MCTS(env, model, n_sim=8, 
                 c_puct=1, threshold=args.threshold,
@@ -75,19 +75,18 @@ def main():
         n_jumps = max(n_jumps - 1, 0)
         for idx, action in enumerate(actions):
             action = tuple(action)
-            _state = state.copy()
-            _state = env.step(_state, action, verbose=args.verbose)
+            _state = env.step(state, action, verbose=args.verbose)
             if args.verbose:
                 _state.save_image()
             if args.monitor:
                 if n_jumps > 0:
                     if _state.depth < state.max_depth:
                         states.append(_state.copy())
-                        state = _state
+                        state = _state.copy()
                         chosen_position = None
                         break
                 # Input 'a' if accept, 'r' if reject
-                inp = input('(a/r/b/j/p), accept/reject/back/jump/choose_position: ')
+                inp = input('(a/r/b/j/p), accept/reject/back/jump/select_position: ')
                 if inp == 'b':
                     # input number of steps to go back
                     inp = -1
@@ -99,7 +98,7 @@ def main():
                     except:
                         print('input number of steps should be an integer')
                         continue
-                    states = states[:-int(inp)]
+                    states = [states[i] for i in range(len(states) - inp)]
                     if len(states) == 1:
                         state = states[0].copy()
                     else:
@@ -115,12 +114,12 @@ def main():
                         print('input number of steps should be an integer')
                         continue
                     states.append(_state.copy())
-                    state = _state           
+                    state = _state.copy()      
                     algo.threshold = args.threshold   
                     chosen_position = None 
                     break
                 elif 'a' in inp:
-                    state = _state
+                    state = _state.copy()
                     states.append(_state.copy())
                     chosen_position = None
                     break
@@ -144,7 +143,7 @@ def main():
                 else:
                     continue
             else:
-                state = _state
+                state = _state.copy()
                 states.append(_state.copy())
                 chosen_position = None
                 break
@@ -170,7 +169,7 @@ def main():
     print('Time: {}'.format(end - start))
     DataProcessor.save_item_to_binary_file(
         state,
-        'output/states/' + args.file_name.split('.')[0] + '.bin') # _' + args.file_name
+        'output/states/' + '.'.join(args.file_name.split('.')[:-1]) + '.bin') # _' + args.file_name
     
 if __name__ == "__main__":
     main()
