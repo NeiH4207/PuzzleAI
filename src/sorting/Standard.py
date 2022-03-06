@@ -124,7 +124,7 @@ class Standard():
         x_target, y_target = value // self.shape[1], value % self.shape[1]
         
         if y_target < self.shape[1] - 2:
-            value_2 = value + self.shape[0]
+            value_2 = value + self.shape[1]
             x_source_2, y_source_2 = None, None
                 
             for i in range(self.shape[0] - 2, self.shape[0]):
@@ -175,7 +175,7 @@ class Standard():
                             return self.get_action(state)
                 else:
                     # x_target_2, y_target_2 = value_2 // self.shape[1], value_2 % self.shape[1]
-                    if state.targets[self.shape[0] - 2][y_target] == value + self.shape[0]:
+                    if state.targets[self.shape[0] - 2][y_target] == value + self.shape[1]:
                         if x_cursor == self.shape[0] - 1:
                             return self.move_up()
                         self.sequential_mode = True

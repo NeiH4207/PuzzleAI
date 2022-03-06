@@ -14,15 +14,15 @@ import argparse
 def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument("--state-path", type=str, default="output/states/")
-    parser.add_argument("-f", "--item-name", type=str, default="Natural_10")
+    parser.add_argument("-f", "--item-name", type=str, default="Match No")
     parser.add_argument("--model-name", type=str, default="model_2_0.pt")
     parser.add_argument("--output-path", type=str, default="./output/recovered_images/")
     parser.add_argument(
         "-a", "--algorithm", type=str, default="standard", help="algorithm to use"
     )
-    parser.add_argument("-v", "--verbose", action="store_true")
+    parser.add_argument("-v", "--verbose", action="store_true", default=True)
     parser.add_argument("-t", "--sleep", type=float, default=0)
-    parser.add_argument("-k", "--skip", type=int, default=1)
+    parser.add_argument("-k", "--skip", type=int, default=100)
     parser.add_argument("-s", "--n_fast_moves", type=int, default=-2)
     parser.add_argument("-r", "--rate", type=str, default="8/2")
     parser.add_argument("-c", "--max_select", type=int, default=None)

@@ -50,7 +50,7 @@ def main():
     env = Environment()
     if args.algorithm == 'greedy':
         algo = Greedy(env, model, verbose=args.verbose, 
-                    n_bests=4, threshold=args.threshold)
+                    n_bests=3, threshold=args.threshold)
     elif args.algorithm == 'mcts':
         algo = MCTS(env, model, n_sim=8, 
                 c_puct=1, threshold=args.threshold,
@@ -169,7 +169,7 @@ def main():
     print('Time: {}'.format(end - start))
     DataProcessor.save_item_to_binary_file(
         state,
-        'output/states/' + args.file_name.split('.')[0] + '.bin') # _' + args.file_name
+        'output/states/' + '.'.join(args.file_name.split('.')[:-1]) + '.bin') # _' + args.file_name
     
 if __name__ == "__main__":
     main()
