@@ -14,7 +14,7 @@ import argparse
 def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument("--state-path", type=str, default="output/states/")
-    parser.add_argument("-f", "--item-name", type=str, default="Match No")
+    parser.add_argument("-f", "--item-name", type=str, default="Match_BKA_Image")
     parser.add_argument("--model-name", type=str, default="model_2_0.pt")
     parser.add_argument("--output-path", type=str, default="./output/recovered_images/")
     parser.add_argument(
