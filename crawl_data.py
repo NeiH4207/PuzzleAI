@@ -5,7 +5,7 @@ from src.data_helper import DataProcessor
 def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument('-b', '--batch-size', type=int, default=100, help='batch size')
-    parser.add_argument('-s', '--skiprows', type=int, default=6560, help='skip size')
+    parser.add_argument('-s', '--skiprows', type=int, default=26560, help='skip size')
     parser.add_argument('-d', '--data-dir', type=str, default='data', help='data directory')
     parser.add_argument('-o', '--output-dir', type=str, default='input/data/64x64/', help='output directory')
     parser.add_argument('-t', '--type', type=str, default='train', help='data type')

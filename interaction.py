@@ -19,12 +19,12 @@ def parse_args():
     parser.add_argument("--sol-path", type=str, default="output/solutions")
     parser.add_argument("--output-path", type=str, default="./output/recovered_images/")
     parser.add_argument( "--token", type=str, 
-        default="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6NSwiaWF0IjoxNjQ2MzIwMDA4LCJleHAiOjE2NDYzMzgwMDh9.pNvyYDhfrZ3r5vcKzPPm9gLRsiWdRZ3mRiWB1He-ai4"
+        default="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6NSwiaWF0IjoxNjQ2NzU2NDk2LCJleHAiOjE2NDY3NzQ0OTZ9.NpmbbF1mm3cOcSRcJdxptSjOTjn58LXkD8qg-FMAcpQ"
     )
     parser.add_argument("-s", "--tournament_name", type=str, default='Computer_Tour')
     parser.add_argument("-r", "--round_name", type=str, default='Computer_Round')
-    parser.add_argument("-m", "--match_name", type=str, default='Natural_18')
-    parser.add_argument("-p", "--mode", type=str, default='w')
+    parser.add_argument("-m", "--match_name", type=str, default='color_12x9')
+    parser.add_argument("-p", "--mode", type=str, default='r')
     args = parser.parse_args()
     return args
 

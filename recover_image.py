@@ -41,9 +41,9 @@ def main():
     state.save_image()
     model = VGG('VGG7')
     try:
-        model.load_checkpoint(0, 938)
+        model.load_checkpoint(0, 481)
     except:
-        model.load(0, 938)
+        model.load(0, 481)
         
     model.eval()
     
@@ -54,7 +54,7 @@ def main():
     elif args.algorithm == 'mcts':
         algo = MCTS(env, model, n_sim=8, 
                 c_puct=1, threshold=args.threshold,
-                n_bests=5, verbose=False)
+                n_bests=3, verbose=False)
     else:
         raise Exception('Unknown algorithm')
     
@@ -150,7 +150,7 @@ def main():
         
         
             # env.show_image(state)
-        # print('Probability: {}'.format(probs[0]))
+        print('Probability: {}'.format(probs[0]))
         print('Step: {} / {}'.format(state.depth, state.max_depth))
         print('Time: %.3f' % (time.time() - start))
         
