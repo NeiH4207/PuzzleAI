@@ -194,30 +194,30 @@ class DataHelper:
                                 continue
                             if k == 12 and m == 3:
                                 continue
-                            if np.random.rand() < 0.55:
-                                continue
+                            # if np.random.rand() < 0.55:
+                            #     continue
                             index = np.zeros(4, dtype=np.uint8)
                             index[m] = 1 
                             index = np.concatenate((index, lost_positions[k]), axis=0)
                             new_dataset['data'].append([recovered_image, index])
                             new_dataset['target'].append(1)
-                    if k < 9:
-                        for m in range(4):
-                            if lost_positions[k][m] == 1:
-                                # random position
+
+                    for m in range(4):
+                        if lost_positions[k][m] == 1:
+                            # random position
+                            x, y = np.random.randint(0, block_dim[0]), np.random.randint(0, block_dim[1])
+                            while x == i and y == j:
                                 x, y = np.random.randint(0, block_dim[0]), np.random.randint(0, block_dim[1])
-                                while x == i and y == j:
-                                    x, y = np.random.randint(0, block_dim[0]), np.random.randint(0, block_dim[1])
-                                cp_sub_img = copy(sub_img)
-                                cp_sub_img[m//2][m%2] = blocks[x][y]
-                                recovered_image = self.merge_blocks(cp_sub_img)
-                                # cv2.imwrite('output/sample.png', recovered_image)
-                                index = np.zeros(4, dtype=np.uint8)
-                                index[m] = 1 
-                                index = np.concatenate((index, lost_positions[k]), axis=0)
-                                index[4 + m] = 0
-                                new_dataset['data'].append([recovered_image, index])
-                                new_dataset['target'].append(0)
+                            cp_sub_img = copy(sub_img)
+                            cp_sub_img[m//2][m%2] = blocks[x][y]
+                            recovered_image = self.merge_blocks(cp_sub_img)
+                            cv2.imwrite('output/sample.png', recovered_image)
+                            index = np.zeros(4, dtype=np.uint8)
+                            index[m] = 1 
+                            index = np.concatenate((index, lost_positions[k]), axis=0)
+                            index[4 + m] = 0
+                            new_dataset['data'].append([recovered_image, index])
+                            new_dataset['target'].append(0)
         return new_dataset
     
     def generate_data(self, dataset, block_dim, block_size, n_jobs=1):
