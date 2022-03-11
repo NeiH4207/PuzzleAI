@@ -80,7 +80,10 @@ class Trainer:
                     self.model.save_checkpoint(iter, batch_idx)
                     self.model.save_train_losses(self.train_losses)
                     self.model.save_checkpoint(iter, batch_idx)
-                    t.set_postfix(val_acc=self.test())
+                    acc, val_loss = self.test()
+                    print("Accuracy: {}".format(acc))
+                    print("Validation loss: {}".format(val_loss))
+                    t.set_postfix(acc=acc, val_loss=val_loss)
 
             
     def load_model_from_path(self, path):
@@ -98,17 +101,22 @@ class Trainer:
             print('Skipping test')
         self.model.eval()
         correct = 0
+        total_loss = 0
         with T.no_grad():
-            t = tqdm(zip(self.test_loader['data'], self.test_loader['target']), desc="Testing")
-            for _iter, (data, target) in enumerate(t):
-                input_1, input_2 = DataProcessor.convert_image_to_three_dim(data[0]), data[1]
-                output = self.model.predict([input_1], [input_2])
-                if np.abs((output - target)) < 0.1:
-                    correct += 1
-                if _iter % 10 == 0:
-                    t.set_postfix(acc=correct/(1+_iter))
-        self.test_acc.append(correct / len(self.test_loader['data']))
-        return 100. * correct / len(self.test_loader['data'])
-        # print('\nTest set: Accuracy: {}/{} ({:.0f}%)\n'.format(
-        #     correct, len(self.test_loader['data']),
-        #     100. * correct / len(self.test_loader['data'])))
+            test_batches = self.split_batch(self.test_loader, len(self.test_loader['data']))
+            for batch_idx, (data, targets) in enumerate(test_batches):
+                input_1, input_2= [
+                    [DataProcessor.convert_image_to_three_dim(dt[0]) for dt in data],
+                    [dt[1] for dt in data]
+                ]
+                input_1 = Variable(T.FloatTensor(np.array(input_1).astype(np.float64)).to(self.device), requires_grad=True)
+                input_2 = Variable(T.FloatTensor(np.array(input_2).astype(np.float64)).to(self.device), requires_grad=True)
+                targets = Variable(T.FloatTensor(np.array(targets).astype(np.float64)).to(self.device), requires_grad=True)
+                outputs = self.model(input_1, input_2).reshape(targets.shape)
+                loss_value = self.model.loss(outputs.flatten(), targets)
+                # correct if the difference less than 0.3
+                correct += np.sum((outputs.flatten() - targets).abs().data.cpu().numpy() < 0.3)
+                total_loss += np.sum(loss_value.item())
+                
+        self.valid_acc.append(correct / len(self.test_loader['data']))
+        return self.valid_acc[-1], total_loss / len(test_batches)

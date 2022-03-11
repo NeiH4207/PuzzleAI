@@ -13,14 +13,15 @@ from models.densenet import densenet_cifar
 import cv2
 from utils import *
 seed(10)
+
 def get_dataset(file_dir, file_name, iter, saved=False):
     if configs['preprocess']:
         dataset = None
         dataset = DataProcessor.load_data_from_binary_file(file_dir, file_name)
         dataset = DataProcessor.generate_data(dataset, 
-                                        (2, 2),
+                                        img_configs['block-dim'],
                                         img_configs['block-size'],
-                                        n_jobs=72)
+                                        n_jobs=2)
         
         DataProcessor.save_data_to_binary_file(dataset, "input/data/64x64/train_batchs/dataset_{}.bin".format(iter))
         trainset, testset = DataProcessor.split_dataset(dataset, 0.98, saved=False)

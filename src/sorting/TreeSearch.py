@@ -12,7 +12,7 @@ log = logging.getLogger(__name__)
 
 class TreeSearch():
     """
-    This class handles the A* algorithm.
+    This class handles the IDA* algorithm.
     """
 
     def __init__(self, env, depth, breadth, verbose=False):

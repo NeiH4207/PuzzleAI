@@ -61,8 +61,8 @@ class MCTS():
         counts = []
         actions = []
         for action in self.Ps[s]: 
-            if (s, action) in self.Nsa:
-                counts.append(self.Nsa[(s, action)])
+            if (s, action) in self.Qsa:
+                counts.append(self.Qsa[(s, action)])
                 actions.append(action)
                         
         if temp == 0:

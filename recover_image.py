@@ -19,9 +19,9 @@ def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument('--game-info-path', type=str, default='./input/game_info/')
     parser.add_argument('--model-path', type=str, default='./trainned_models/')
-    parser.add_argument('--model-name', type=str, default='model_2_0.pt')
+    parser.add_argument('--model-name', type=str, default=None)
     parser.add_argument('--output-path', type=str, default='./output/recovered_images/')
-    parser.add_argument('-f', '--file-name', type=str, default='Natural_5')
+    parser.add_argument('-f', '--file-name', type=str, default='Natural_18')
     parser.add_argument('--image-size-out', type=int, default=(512, 512))   
     parser.add_argument('-s', '--block-size', type=int, default=(32, 32))
     parser.add_argument('-a', '--algorithm', type=str, default='greedy')
@@ -40,21 +40,18 @@ def main():
     state.make()
     state.save_image()
     model = VGG('VGG7')
-    try:
-        model.load_checkpoint(0, 938)
-    except:
-        model.load(0, 938)
+    model.load(0, 500, args.model_name)
         
     model.eval()
     
     env = Environment()
     if args.algorithm == 'greedy':
         algo = Greedy(env, model, verbose=args.verbose, 
-                    n_bests=3, threshold=args.threshold)
+                    n_bests=4, threshold=args.threshold)
     elif args.algorithm == 'mcts':
         algo = MCTS(env, model, n_sim=8, 
                 c_puct=1, threshold=args.threshold,
-                n_bests=5, verbose=False)
+                n_bests=3, verbose=False)
     else:
         raise Exception('Unknown algorithm')
     
@@ -150,7 +147,7 @@ def main():
         
         
             # env.show_image(state)
-        # print('Probability: {}'.format(probs[0]))
+        print('Probability: {}'.format(probs[0]))
         print('Step: {} / {}'.format(state.depth, state.max_depth))
         print('Time: %.3f' % (time.time() - start))
         

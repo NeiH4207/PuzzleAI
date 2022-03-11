@@ -26,7 +26,7 @@ class Solution(object):
     def store_action(self, action):
         if action[0] == 'select':
             self.num_selects += 1
-            self.select_list.append(self.int2hex(action[1][0]) + self.int2hex(action[1][1]))
+            self.select_list.append(self.int2hex(action[1][1]) + self.int2hex(action[1][0]))
             self.swap_arrays.append("")
             self.curr_postion = action[1]
         else:
