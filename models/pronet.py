@@ -91,8 +91,10 @@ class Pronet(nn.Module):
         
     def save(self, epoch, batch_idx):
         torch.save(self.state_dict(), "{}/{}_{}_{}.pt".format(model_configs.save_dir, self.name, epoch, batch_idx))
-        print("Model saved")
+        # print("Model saved")
         
-    def load(self, epoch, batch_idx):
-        self.load_state_dict(torch.load("{}/{}_{}_{}.pt".format(model_configs.save_dir, self.name, epoch, batch_idx)))
-        print("Model loaded")
+    def load(self, epoch, batch_idx, model_name=None):
+        if model_name is None:
+            self.load_state_dict(torch.load("{}/{}_{}_{}.pt".format(model_configs.save_dir, self.name, epoch, batch_idx)))
+        else:
+            self.load_state_dict(torch.load("{}/{}.pt".format(model_configs.save_dir, model_name)))

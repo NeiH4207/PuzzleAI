@@ -1,4 +1,5 @@
 from copy import deepcopy
+import cv2
 import numpy as np
 from torch import poisson
 from src.data_helper import DataProcessor
@@ -55,13 +56,14 @@ class Greedy():
                     state.masked[i][j], state.masked[i][j + 1],
                     state.masked[i + 1][j], state.masked[i + 1][j + 1]], dtype=np.uint8)
                 mask[(x - i) * 2 + (y - j)] = 1
-                index = np.concatenate((index, mask.flatten()), axis=0)
+                index = np.concatenate((index, 1 - mask.flatten()), axis=0)
                 indexes = [index] * 4
                 images = []
                 for angle in range(4):
                     subblocks[x - i][y - j] = self.blocks_rotated[_x][_y][angle]
                     recovered_image = DataProcessor.merge_blocks(subblocks, mask=self.mask)
                     recovered_image_ = DataProcessor.convert_image_to_three_dim(recovered_image)
+                    # cv2.imwrite('output/sample.png', recovered_image)
                     images.append(recovered_image_)
                     action = ((x, y), (_x, _y), angle)
                     actions.append(action)
