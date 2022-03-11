@@ -206,10 +206,11 @@ class DataHelper:
                         if lost_positions[k][m] == 1:
                             # random position
                             x, y = np.random.randint(0, block_dim[0]), np.random.randint(0, block_dim[1])
-                            while x == i and y == j:
-                                x, y = np.random.randint(0, block_dim[0]), np.random.randint(0, block_dim[1])
                             cp_sub_img = copy(sub_img)
-                            cp_sub_img[m//2][m%2] = blocks[x][y]
+                            if x==i and y==j:
+                                cp_sub_img[m//2][m%2] = np.rot90(blocks[x][y], k=np.random.randint(1, 3))
+                            else:
+                                cp_sub_img[m//2][m%2] = blocks[x][y]
                             recovered_image = self.merge_blocks(cp_sub_img)
                             cv2.imwrite('output/sample.png', recovered_image)
                             index = np.zeros(4, dtype=np.uint8)
