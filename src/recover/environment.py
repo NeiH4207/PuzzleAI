@@ -90,6 +90,8 @@ class State(GameInfo):
         self.block_size = block_size
         self.block_dim = block_dim
         self.bottom_right_corner = (0, 0)
+        self.parent = None
+        self.child = None
         
     def make(self):
         self.block_shape = (self.block_size[0], self.block_size[1], 3)
@@ -242,8 +244,9 @@ class Environment():
         Performs an action in the environment.
         """
         s_name = state.get_string_presentation()
-        if (s_name, action) in self.next_step:
-            return self.next_step[(s_name, action)]
+        # if (s_name, action) in self.next_step:
+        #     state.child = self.next_step[(s_name, action)]
+        #     return self.next_step[(s_name, action)]
         (x, y), (_x, _y), angle = action
         next_s = state.copy()
         if x == -1:
@@ -263,7 +266,7 @@ class Environment():
         next_s.last_action = (x, y)
         next_s.set_string_presentation()
         self.next_step[(s_name, action)] = next_s
-            
+        next_s.parent = state
         return next_s
     
     def get_next_block_ids(self, state, current_block_id):

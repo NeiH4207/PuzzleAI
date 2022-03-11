@@ -40,7 +40,7 @@ def main():
     state.make()
     state.save_image()
     model = VGG('VGG7')
-    model.load(0, 500, args.model_name)
+    model.load(0, 1580, args.model_name)
         
     model.eval()
     
@@ -72,76 +72,65 @@ def main():
         n_jumps = max(n_jumps - 1, 0)
         for idx, action in enumerate(actions):
             action = tuple(action)
-            _state = env.step(state, action, verbose=args.verbose)
+            state = env.step(state, action, verbose=args.verbose)
             if args.verbose:
-                _state.save_image()
+                state.save_image()
             if args.monitor:
-                if n_jumps > 0:
-                    if _state.depth < state.max_depth:
-                        states.append(_state.copy())
-                        state = _state.copy()
+                if n_jumps > 0 and probs[0] > 0.5:
+                    if state.depth < state.max_depth:
                         chosen_position = None
                         break
+                else:
+                    n_jumps = 0
                 # Input 'a' if accept, 'r' if reject
-                inp = input('(a/r/b/j/p), accept/reject/back/jump/select_position: ')
-                if inp == 'b':
-                    # input number of steps to go back
-                    inp = -1
+                query = input('(a/r/b/j/p), accept/reject/back/jump/select_position: ')
+                if 'b' in query:
                     try:
-                        while inp < 0 or inp >= len(states):
-                            inp = int(input('input number of steps to go back: '))
-                            if inp < 0 or inp >= len(states):
-                                print('the number of steps to go back should be between 0 and {}'.format(len(states)-1))
+                    # queryut number of steps to go back
+                        n_backs = int(query.split(' ')[1])
+                        for i in range(n_backs):
+                            if state.parent is None:
+                                break
+                            state = state.parent
+                        algo.threshold = 1.0
+                        chosen_position = None
+                        break
+                    except:
+                        print('Invalid input')
+                        
+                elif 'j' in query:
+                    try:
+                        n_jumps = int(query.split(' ')[1])
                     except:
                         print('input number of steps should be an integer')
                         continue
-                    states = [states[i] for i in range(len(states) - inp)]
-                    if len(states) == 1:
-                        state = states[0].copy()
-                    else:
-                        state = states[-1].copy()
-                    algo.threshold = 1.0
-                    chosen_position = None
-                    break
-                elif inp == 'j':
-                    try:
-                        # input number of steps to jump
-                        n_jumps = int(input('input number of steps to jump: '))
-                    except:
-                        print('input number of steps should be an integer')
-                        continue
-                    states.append(_state.copy())
-                    state = _state.copy()      
                     algo.threshold = args.threshold   
                     chosen_position = None 
                     break
-                elif 'a' in inp:
-                    state = _state.copy()
-                    states.append(_state.copy())
+                elif 'a' in query:
                     chosen_position = None
                     break
-                elif 'p' in inp:
+                elif 'p' in query:
                     try:
-                        x, y = inp.split(' ')[1:]
+                        x, y = query.split(' ')[1:]
                         x, y = int(x), int(y)
                         chosen_position = (x, y)
                     except Exception as e:
                         print(e)
                         print('Please input the position of the pixel as x y')
                         continue
+                    state = state.parent
                     break
-                elif 's' in inp:
-                    states.append(_state.copy())
-                    state = _state   
-                    DataProcessor.save_item_to_binary_file(
-                        state,
-                        'output/states/' + args.file_name.split('.')[0] + '.bin') # _' + args.file_name
-                    break
+                # elif 's' in inp:
+                #     DataProcessor.save_item_to_binary_file(
+                #         state,
+                #         'output/states/' + args.file_name.split('.')[0] + '.bin') # _' + args.file_name
+    
+                #     break
                 else:
+                    state = state.parent
                     continue
             else:
-                state = _state.copy()
-                states.append(_state.copy())
                 chosen_position = None
                 break
         
