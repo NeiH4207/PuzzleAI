@@ -40,7 +40,7 @@ def main():
     state.make()
     state.save_image()
     model = VGG('VGG7')
-    model.load(0, 1580, args.model_name)
+    model.load(0, 1581, args.model_name)
         
     model.eval()
     
@@ -59,7 +59,6 @@ def main():
     print('Threshold:', args.threshold)
     
     start = time.time()
-    states = [state]
     n_jumps = args.n_jumps
     chosen_position = None
     
@@ -82,6 +81,7 @@ def main():
                         break
                 else:
                     n_jumps = 0
+                sys.stdout.flush()
                 # Input 'a' if accept, 'r' if reject
                 query = input('(a/r/b/j/p), accept/reject/back/jump/select_position: ')
                 if 'b' in query:

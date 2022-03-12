@@ -211,6 +211,10 @@ class State(GameInfo):
     def save_image(self, filename='sample.png'):
         new_img = DataProcessor.merge_blocks(self.dropped_blocks)
         cv2.imwrite('output/' + filename, new_img)
+        
+    def get_image(self):
+        return DataProcessor.merge_blocks(self.dropped_blocks)
+        
     def save_binary(self, path):
         DataProcessor.save_binary(self.dropped_blocks, path)
         
@@ -265,7 +269,7 @@ class Environment():
         next_s.depth += 1
         next_s.last_action = (x, y)
         next_s.set_string_presentation()
-        self.next_step[(s_name, action)] = next_s
+        # self.next_step[(s_name, action)] = next_s
         next_s.parent = state
         return next_s
     
@@ -303,17 +307,9 @@ class Environment():
         # print('full_row:', full_row)
         # print('full_col:', full_col)
         if position is not None:
-            for i in range(4):
-                new_x = position[0] + dx[i]
-                new_y = position[1] + dy[i]
-                if new_x >= state.block_dim[0] \
-                    or new_y >= state.block_dim[1]:
-                    continue
-                if ((new_x < 0 and state.bottom_right_corner[0] < state.block_dim[0] - 1) \
-                        and (new_y < 0 and state.bottom_right_corner[1] < state.block_dim[1])) \
-                        or state.masked[new_x][new_y] == 0:
-                    chosen_block_ids.add((new_x, new_y))
-                    from_position[(new_x, new_y)] = position
+            x, y = position
+            chosen_block_ids.add((x, y))
+            from_position[(x, y)] = None
             
         if len(chosen_block_ids) == 0:
             # take random action
@@ -393,7 +389,7 @@ class Environment():
         
         if full_col and full_row:
             kmax = 2
-            
-        block_ids.sort(key=lambda x: state.std_errs[from_position[x][0]][from_position[x][1]], reverse=True)
+        block_ids.sort(key=lambda x: ranks[x], reverse=True)  
+        # block_ids.sort(key=lambda x: state.std_errs[from_position[x][0]][from_position[x][1]], reverse=True)
         final_block_ids = block_ids[:min(kmax, len(block_ids))]
         return final_block_ids, best_square, ranks
