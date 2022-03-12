@@ -89,7 +89,9 @@ class State(GameInfo):
         self.original_blocks = blocks
         self.block_size = block_size
         self.block_dim = block_dim
-        self.bottom_right_corner = (0, 0)
+        self.bottom_right_corner = [0, 0]
+        self.parent = None
+        self.child = None
         
     def make(self):
         self.block_shape = (self.block_size[0], self.block_size[1], 3)
@@ -209,6 +211,10 @@ class State(GameInfo):
     def save_image(self, filename='sample.png'):
         new_img = DataProcessor.merge_blocks(self.dropped_blocks)
         cv2.imwrite('output/' + filename, new_img)
+        
+    def get_image(self):
+        return DataProcessor.merge_blocks(self.dropped_blocks)
+        
     def save_binary(self, path):
         DataProcessor.save_binary(self.dropped_blocks, path)
         
@@ -242,16 +248,19 @@ class Environment():
         Performs an action in the environment.
         """
         s_name = state.get_string_presentation()
-        if (s_name, action) in self.next_step:
-            return self.next_step[(s_name, action)]
+        # if (s_name, action) in self.next_step:
+        #     state.child = self.next_step[(s_name, action)]
+        #     return self.next_step[(s_name, action)]
         (x, y), (_x, _y), angle = action
         next_s = state.copy()
         if x == -1:
             next_s.translation('down')
+            next_s.bottom_right_corner[0] += 1
             x = 0
         
         if y == -1:
             next_s.translation('right')
+            next_s.bottom_right_corner[1] += 1
             y = 0
         
         next_s.dropped_blocks[x][y] = np.rot90(state.blocks[_x][_y], k=angle)
@@ -262,8 +271,8 @@ class Environment():
         next_s.depth += 1
         next_s.last_action = (x, y)
         next_s.set_string_presentation()
-        self.next_step[(s_name, action)] = next_s
-            
+        # self.next_step[(s_name, action)] = next_s
+        next_s.parent = state
         return next_s
     
     def get_next_block_ids(self, state, current_block_id):
@@ -300,17 +309,12 @@ class Environment():
         # print('full_row:', full_row)
         # print('full_col:', full_col)
         if position is not None:
-            for i in range(4):
-                new_x = position[0] + dx[i]
-                new_y = position[1] + dy[i]
-                if new_x >= state.block_dim[0] \
-                    or new_y >= state.block_dim[1]:
-                    continue
-                if ((new_x < 0 and state.bottom_right_corner[0] < state.block_dim[0] - 1) \
-                        and (new_y < 0 and state.bottom_right_corner[1] < state.block_dim[1])) \
-                        or state.masked[new_x][new_y] == 0:
-                    chosen_block_ids.add((new_x, new_y))
-                    from_position[(new_x, new_y)] = position
+            _x, _y = position
+            if ((_x < 0 and state.bottom_right_corner[0] < state.block_dim[0] - 1) \
+                    and (_y < 0 and state.bottom_right_corner[1] < state.block_dim[1])) \
+                    or state.masked[_x][_y] == 0:
+                chosen_block_ids.add((_x, _y))
+                from_position[(_x, _y)] = None
             
         if len(chosen_block_ids) == 0:
             # take random action
@@ -390,7 +394,7 @@ class Environment():
         
         if full_col and full_row:
             kmax = 2
-            
-        block_ids.sort(key=lambda x: state.std_errs[from_position[x][0]][from_position[x][1]], reverse=True)
+        block_ids.sort(key=lambda x: ranks[x], reverse=True)  
+        # block_ids.sort(key=lambda x: state.std_errs[from_position[x][0]][from_position[x][1]], reverse=True)
         final_block_ids = block_ids[:min(kmax, len(block_ids))]
         return final_block_ids, best_square, ranks

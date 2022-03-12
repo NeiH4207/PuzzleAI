@@ -54,12 +54,17 @@ class Trainer:
     
     def train(self):
         self.model.to(self.device)
+        acc, val_loss = self.test()
+        print("Accuracy: {}".format(acc))
+        print("Validation loss: {}".format(val_loss))
         self.model.train()
         for iter in range(self.n_repeats):
             train_batches = self.split_batch(self.train_loader, self.batch_size)
             t = tqdm(train_batches, desc="Iter {}".format(iter))
+            acc = 0
+            val_loss = -1
             for batch_idx, (data, targets) in enumerate(t):
-                input_1, input_2= [
+                input_1, input_2 = [
                     [DataProcessor.convert_image_to_three_dim(dt[0]) for dt in data],
                     [dt[1] for dt in data]
                 ]
@@ -73,17 +78,12 @@ class Trainer:
                 self.train_losses.append(loss.item())
                 self.model.step()
                 
-                t.set_postfix(loss=loss.item())
+                t.set_postfix(loss=loss.item(), acc=acc, val_loss=val_loss)
 
                 if batch_idx % self.save_every == 0 and batch_idx != 0 or batch_idx == len(train_batches) - 1:
                     self.save_train_losses()
-                    self.model.save_checkpoint(iter, batch_idx)
-                    self.model.save_train_losses(self.train_losses)
-                    self.model.save_checkpoint(iter, batch_idx)
+                    self.model.save(iter, batch_idx)
                     acc, val_loss = self.test()
-                    print("Accuracy: {}".format(acc))
-                    print("Validation loss: {}".format(val_loss))
-                    t.set_postfix(acc=acc, val_loss=val_loss)
 
             
     def load_model_from_path(self, path):

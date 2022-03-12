@@ -14,6 +14,7 @@ from utils import *
 from src.recover.environment import Environment, State, GameInfo
 from configs import *
 import argparse
+from src.screen import Screen
 
 def parse_args():
     parser = argparse.ArgumentParser()
@@ -21,7 +22,7 @@ def parse_args():
     parser.add_argument('--model-path', type=str, default='./trainned_models/')
     parser.add_argument('--model-name', type=str, default=None)
     parser.add_argument('--output-path', type=str, default='./output/recovered_images/')
-    parser.add_argument('-f', '--file-name', type=str, default='Natural_18')
+    parser.add_argument('-f', '--file-name', type=str, default='8x8')
     parser.add_argument('--image-size-out', type=int, default=(512, 512))   
     parser.add_argument('-s', '--block-size', type=int, default=(32, 32))
     parser.add_argument('-a', '--algorithm', type=str, default='greedy')
@@ -38,12 +39,12 @@ def main():
     state = State(block_size=args.block_size)
     state.load_from_json(file_name=args.file_name + '.json')
     state.make()
-    state.save_image()
     model = VGG('VGG7')
-    model.load(0, 500, args.model_name)
+    model.load(0, 1580, args.model_name)
         
     model.eval()
-    
+    screen = Screen(state)
+    screen.render(state)
     env = Environment()
     if args.algorithm == 'greedy':
         algo = Greedy(env, model, verbose=args.verbose, 
@@ -59,97 +60,7 @@ def main():
     print('Threshold:', args.threshold)
     
     start = time.time()
-    states = [state]
-    n_jumps = args.n_jumps
-    chosen_position = None
-    
-    if args.monitor:
-        inp = input('Number of jump steps: ')
-        n_jumps = int(inp)
-    
-    while state.depth < state.max_depth:
-        actions, probs = algo.get_next_action(state, position=chosen_position)
-        n_jumps = max(n_jumps - 1, 0)
-        for idx, action in enumerate(actions):
-            action = tuple(action)
-            _state = env.step(state, action, verbose=args.verbose)
-            if args.verbose:
-                _state.save_image()
-            if args.monitor:
-                if n_jumps > 0:
-                    if _state.depth < state.max_depth:
-                        states.append(_state.copy())
-                        state = _state.copy()
-                        chosen_position = None
-                        break
-                # Input 'a' if accept, 'r' if reject
-                inp = input('(a/r/b/j/p), accept/reject/back/jump/select_position: ')
-                if inp == 'b':
-                    # input number of steps to go back
-                    inp = -1
-                    try:
-                        while inp < 0 or inp >= len(states):
-                            inp = int(input('input number of steps to go back: '))
-                            if inp < 0 or inp >= len(states):
-                                print('the number of steps to go back should be between 0 and {}'.format(len(states)-1))
-                    except:
-                        print('input number of steps should be an integer')
-                        continue
-                    states = [states[i] for i in range(len(states) - inp)]
-                    if len(states) == 1:
-                        state = states[0].copy()
-                    else:
-                        state = states[-1].copy()
-                    algo.threshold = 1.0
-                    chosen_position = None
-                    break
-                elif inp == 'j':
-                    try:
-                        # input number of steps to jump
-                        n_jumps = int(input('input number of steps to jump: '))
-                    except:
-                        print('input number of steps should be an integer')
-                        continue
-                    states.append(_state.copy())
-                    state = _state.copy()      
-                    algo.threshold = args.threshold   
-                    chosen_position = None 
-                    break
-                elif 'a' in inp:
-                    state = _state.copy()
-                    states.append(_state.copy())
-                    chosen_position = None
-                    break
-                elif 'p' in inp:
-                    try:
-                        x, y = inp.split(' ')[1:]
-                        x, y = int(x), int(y)
-                        chosen_position = (x, y)
-                    except Exception as e:
-                        print(e)
-                        print('Please input the position of the pixel as x y')
-                        continue
-                    break
-                elif 's' in inp:
-                    states.append(_state.copy())
-                    state = _state   
-                    DataProcessor.save_item_to_binary_file(
-                        state,
-                        'output/states/' + args.file_name.split('.')[0] + '.bin') # _' + args.file_name
-                    break
-                else:
-                    continue
-            else:
-                state = _state.copy()
-                states.append(_state.copy())
-                chosen_position = None
-                break
-        
-        
-            # env.show_image(state)
-        print('Probability: {}'.format(probs[0]))
-        print('Step: {} / {}'.format(state.depth, state.max_depth))
-        print('Time: %.3f' % (time.time() - start))
+    state = screen.start(env,state, algo)
         
     new_blocks = np.zeros(state.original_blocks.shape, dtype=np.uint8)
     for i in range(state.block_dim[0]):
