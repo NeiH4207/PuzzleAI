@@ -1,4 +1,5 @@
 from time import sleep
+from src.screen import Screen
 from src.data_helper import DataProcessor
 from src.recover.greedy import Greedy
 from src.sorting.environment import Solution, State as GameState
@@ -14,13 +15,12 @@ import argparse
 def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument("--state-path", type=str, default="output/states/")
-    parser.add_argument("-f", "--item-name", type=str, default="Match_BKA_Image")
-    parser.add_argument("--model-name", type=str, default="model_2_0.pt")
+    parser.add_argument("-f", "--item-name", type=str, default="8x8")
     parser.add_argument("--output-path", type=str, default="./output/recovered_images/")
     parser.add_argument(
         "-a", "--algorithm", type=str, default="standard", help="algorithm to use"
     )
-    parser.add_argument("-v", "--verbose", action="store_true")
+    parser.add_argument("-v", "--verbose", action="store_true", default=True)
     parser.add_argument("-t", "--sleep", type=float, default=0)
     parser.add_argument("-k", "--skip", type=int, default=100)
     parser.add_argument("-s", "--n_fast_moves", type=int, default=-2)
@@ -69,6 +69,7 @@ def main():
         game_state.shape[0] * game_state.shape[1]
         - env.get_haminton_distance(game_state),
     )
+    screen = Screen(state)
     while not env.get_game_ended(game_state):
         if args.algorithm == "mcts":
             action = mcts.get_action(game_state)
@@ -84,17 +85,15 @@ def main():
             break
         game_state = env.step(game_state, action)
         solution.store_action(action)
-        
         if args.verbose and game_state.depth % args.skip == 0:
-            game_state.save_image()
+            screen.render(game_state, show_button=False)
+            # game_state.save_image()
             distance = env.get_mahattan_distance(game_state)
             print("{}, {}".format(game_state.depth, action))
             print("Overall Distance: {}".format(distance))
             print("Time: {}".format(time.time() - start))
             sleep(args.sleep)
-        # if args.algorithm != "standard" and game_state.n_selects + game_state.shape[1] > game_state.max_select:
-        #     args.algorithm = "standard"
-        #     standard.set_cursor(game_state)
+            
     game_state.show()
     game_state.save_image()
     solution.save_to_json('output/solutions', args.item_name + '.json')

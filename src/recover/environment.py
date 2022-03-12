@@ -89,7 +89,7 @@ class State(GameInfo):
         self.original_blocks = blocks
         self.block_size = block_size
         self.block_dim = block_dim
-        self.bottom_right_corner = (0, 0)
+        self.bottom_right_corner = [0, 0]
         self.parent = None
         self.child = None
         
@@ -255,10 +255,12 @@ class Environment():
         next_s = state.copy()
         if x == -1:
             next_s.translation('down')
+            next_s.bottom_right_corner[0] += 1
             x = 0
         
         if y == -1:
             next_s.translation('right')
+            next_s.bottom_right_corner[1] += 1
             y = 0
         
         next_s.dropped_blocks[x][y] = np.rot90(state.blocks[_x][_y], k=angle)
@@ -307,9 +309,12 @@ class Environment():
         # print('full_row:', full_row)
         # print('full_col:', full_col)
         if position is not None:
-            x, y = position
-            chosen_block_ids.add((x, y))
-            from_position[(x, y)] = None
+            _x, _y = position
+            if ((_x < 0 and state.bottom_right_corner[0] < state.block_dim[0] - 1) \
+                    and (_y < 0 and state.bottom_right_corner[1] < state.block_dim[1])) \
+                    or state.masked[_x][_y] == 0:
+                chosen_block_ids.add((_x, _y))
+                from_position[(_x, _y)] = None
             
         if len(chosen_block_ids) == 0:
             # take random action

@@ -76,4 +76,6 @@ class Greedy():
                     break
             if stop:
                 break
-        return (np.array(actions, dtype=object)[np.argsort(probs)[::-1]]).tolist(), sorted(probs)[::-1]
+        indices = np.argsort(probs)[::-1]
+        return [[actions[indices[i]] for i in range(len(indices))],
+                [probs[indices[i]] for i in range(len(indices))]]
