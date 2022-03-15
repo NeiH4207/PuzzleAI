@@ -20,7 +20,7 @@ def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument('--game-info-path', type=str, default='./input/game_info/')
     parser.add_argument('--model-path', type=str, default='./trainned_models/')
-    parser.add_argument('--model-name', type=str, default=None)
+    parser.add_argument('--model-name', type=str, default='model')
     parser.add_argument('--output-path', type=str, default='./output/recovered_images/')
     parser.add_argument('-f', '--file-name', type=str, default='8x8')
     parser.add_argument('--image-size-out', type=int, default=(512, 512))   

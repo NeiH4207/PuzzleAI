@@ -5,11 +5,6 @@ import cv2
 import json
 
 import numpy as np
-from numpy.core.shape_base import block
-import tkinter
-from PIL import Image, ImageTk
-from numpy.random.mtrand import shuffle
-from torch import float32
 from src.data_helper import DataProcessor
 
 class GameInfo():
@@ -194,6 +189,22 @@ class State(GameInfo):
                     cp_inverse[i][(j + 1)%self.block_dim[1]] = self.inverse[i][j]
                     cp_std_errs[i][(j + 1)%self.block_dim[1]] = self.std_errs[i][j]
                     
+        if mode == 'up':
+            for i in range(self.block_dim[0]):
+                for j in range(self.block_dim[1]):
+                    cp_dropped_blocks[(i - 1)%self.block_dim[0]][j] = self.dropped_blocks[i][j]
+                    cp_masked[(i - 1)%self.block_dim[0]][j] = self.masked[i][j]
+                    cp_inverse[(i - 1)%self.block_dim[0]][j] = self.inverse[i][j]
+                    cp_std_errs[(i - 1)%self.block_dim[0]][j] = self.std_errs[i][j]
+            
+        if mode == 'left':
+            for i in range(self.block_dim[0]):
+                for j in range(self.block_dim[1]):
+                    cp_dropped_blocks[i][(j - 1)%self.block_dim[1]] = self.dropped_blocks[i][j]
+                    cp_masked[i][(j - 1)%self.block_dim[1]] = self.masked[i][j]
+                    cp_inverse[i][(j - 1)%self.block_dim[1]] = self.inverse[i][j]
+                    cp_std_errs[i][(j - 1)%self.block_dim[1]] = self.std_errs[i][j]
+        
         self.dropped_blocks = cp_dropped_blocks
         self.masked = cp_masked
         self.inverse = cp_inverse
@@ -228,17 +239,6 @@ class Environment():
         self.reset()
         self.next_step = {}
         self.canvas = None
-    
-    def set_canvas(self, state):
-        self.canvas = tkinter.Canvas(width=state.image_size[1], height=state.image_size[0])
-        self.canvas.pack()
-        
-    def show_image(self, state):
-        img = DataProcessor.merge_blocks(state.dropped_blocks)
-        self.canvas.delete(tkinter.ALL)
-        image = ImageTk.PhotoImage(Image.fromarray(img))
-        self.canvas.create_image(0, 0, image=image, anchor=tkinter.NW)
-        self.canvas.update()
         
     def reset(self):
         return
@@ -247,7 +247,7 @@ class Environment():
         """
         Performs an action in the environment.
         """
-        s_name = state.get_string_presentation()
+        # s_name = state.get_string_presentation()
         # if (s_name, action) in self.next_step:
         #     state.child = self.next_step[(s_name, action)]
         #     return self.next_step[(s_name, action)]
@@ -274,6 +274,37 @@ class Environment():
         # self.next_step[(s_name, action)] = next_s
         next_s.parent = state
         return next_s
+    
+    def remove(self, state, action):
+        x, y = action
+        next_s = state.copy()
+        next_s.masked[x][y] = 0
+        next_s.dropped_blocks[x][y] = np.zeros((state.block_shape[0], state.block_shape[1], 3), dtype=np.uint8)
+        _x, _y = next_s.inverse[x][y][:2]
+        next_s.inverse[x][y] = (x, y, 0)
+        next_s.lost_block_labels[_x][_y] = 1
+        next_s.parent = state
+        next_s.set_string_presentation()
+        next_s.depth -= 1
+        
+        if x == 0:
+            sum_x = 0
+            for i in range(state.block_dim[1]):
+                sum_x += state.masked[0][i]
+            if sum_x == 0:
+                next_s.translation('up')
+                next_s.bottom_right_corner[0] -= 1
+        
+        if y == 0:
+            sum_y = 0
+            for i in range(state.block_dim[0]):
+                sum_y += state.masked[i][0]
+            if sum_y == 0:
+                next_s.translation('left')
+                next_s.bottom_right_corner[1] -= 1
+        
+        return next_s
+        
     
     def get_next_block_ids(self, state, current_block_id):
         """

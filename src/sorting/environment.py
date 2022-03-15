@@ -264,19 +264,16 @@ class Environment():
             cost_4 = min(abs(true_pos[0] - x1), state.shape[0] - abs(true_pos[0] - x1)) + \
                         min(abs(true_pos[1] - y1), state.shape[1] - abs(true_pos[1] - y1)) 
                          
-            reward = (cost_1 - cost_2) + (cost_3 - cost_4) \
+            reward = (1 - 500/(1000+random.uniform(0, 1))) * (cost_1 - cost_2) + (1 - 1/(10000+random.uniform(0, 1))) * (cost_3 - cost_4) \
                 - self.r2
         else:
-            # x, y = action[1]
-            # true_pos = (state.targets[x][y] // state.shape[1],\
-            #                 state.targets[x][y] %    state.shape[1])
-            # cost_1 = min(abs(true_pos[0] - x), state.shape[0] - abs(true_pos[0] - x)) + \
-            #             min(abs(true_pos[1] - y), state.shape[1] - abs(true_pos[1] - y))
+            x, y = action[1]
+            true_pos = (state.targets[x][y] // state.shape[1],\
+                            state.targets[x][y] % state.shape[1])
+            cost = min(abs(true_pos[0] - x), state.shape[0] - abs(true_pos[0] - x)) + \
+                        min(abs(true_pos[1] - y), state.shape[1] - abs(true_pos[1] - y))
                 
-            reward = - self.r1
-        # mn = - 2 - min(self.r1, self.r2)
-        # mx = 2 + max(self.r1, self.r2)
-        # return (reward - mn) / (mx - mn)
+            reward = - self.r1 + cost * 0.0001
         return reward
     
     def get_G_reward(self, state):
@@ -325,7 +322,7 @@ class Environment():
             # up, right, down, left
             dx = [1, 0, -1, 0] 
             dy = [0, 1, 0, -1]
-            targets = deepcopy(state.targets)
+            # targets = deepcopy(state.targets)
             x1, y1 = state.curr_position
             value = x1 * state.shape[1] + y1
             if value != state.targets[x1][y1]:
@@ -335,13 +332,13 @@ class Environment():
                 for i in range(4):
                     x2 = (x1 + dx[i]) % state.shape[0]
                     y2 = (y1 + dy[i]) % state.shape[1]
-                    if not repeat and state.last_action[1] == (x2, y2, x1, y1):
-                        continue
-                    targets[x1][y1], targets[x2][y2] = \
-                        deepcopy([state.targets[x2][y2], state.targets[x1][y1]])
-                    s = state.string_presentation((targets, (x2, y2)))
-                    if s in self.counter:
-                        continue
+                    # if not repeat and state.last_action[1] == (x2, y2, x1, y1):
+                    #     continue
+                    # targets[x1][y1], targets[x2][y2] = \
+                    #     deepcopy([state.targets[x2][y2], state.targets[x1][y1]])
+                    # s = state.string_presentation((targets, (x2, y2)))
+                    # if s in self.counter:
+                    #     continue
                     actions.append(('swap', (x1, y1, x2, y2)))
         if state.n_selects < state.max_select:
             for action in state.select_actions:
