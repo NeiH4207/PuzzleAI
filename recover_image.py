@@ -15,6 +15,7 @@ from src.recover.environment import Environment, State, GameInfo
 from configs import *
 import argparse
 from src.screen import Screen
+seed(0)
 
 def parse_args():
     parser = argparse.ArgumentParser()
@@ -40,7 +41,7 @@ def main():
     state.load_from_json(file_name=args.file_name + '.json')
     state.make()
     model = VGG('VGG7')
-    model.load(0, 1580, args.model_name)
+    model.load(0, 1000, args.model_name)
         
     model.eval()
     screen = Screen(state)
@@ -76,7 +77,7 @@ def main():
     print('Recovered image saved at: ' + args.output_path + args.file_name+ '.png')
     print('Time: {}'.format(end - start))
     DataProcessor.save_item_to_binary_file(
-        state,
+        state.small_copy(),
         'output/states/' + args.file_name.split('.')[0] + '.bin') # _' + args.file_name
     
 if __name__ == "__main__":

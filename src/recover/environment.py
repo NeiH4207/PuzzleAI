@@ -151,6 +151,34 @@ class State(GameInfo):
         state.name = self.name
         return state
     
+    
+    def small_copy(self):
+        """
+        Returns a copy of the state.
+        """
+        state = State()
+        small_size = (16, 16)
+        state.original_blocks = np.zeros((self.block_dim[0], self.block_dim[1],
+                                            small_size[0], small_size[1], 3), dtype='uint8')
+            
+        for i in range(self.block_dim[0]):
+            for j in range(self.block_dim[1]):
+                # convert to uint8
+                block = self.original_blocks[i][j].astype('uint8')
+                # resize to block_size
+                block = cv2.resize(block, (16,16), interpolation = cv2.INTER_AREA)
+                # add to blocks
+                state.original_blocks[i][j] = block
+                      
+        state.block_size = self.block_size
+        state.block_shape = self.block_shape
+        state.block_dim = self.block_dim
+        state.image_size = self.image_size
+        state.inverse = self.inverse
+        state.select_swap_ratio = self.select_swap_ratio
+        state.max_n_selects = self.max_n_selects
+        return state
+    
     def get_std_err(self, block): 
         '''
         Returns the standard error of the block 2D array.

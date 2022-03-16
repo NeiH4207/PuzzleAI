@@ -15,12 +15,12 @@ import argparse
 def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument("--state-path", type=str, default="output/states/")
-    parser.add_argument("-f", "--item-name", type=str, default="8x8")
+    parser.add_argument("-f", "--item-name", type=str, default="Natural_3")
     parser.add_argument("--output-path", type=str, default="./output/recovered_images/")
     parser.add_argument(
         "-a", "--algorithm", type=str, default="standard", help="algorithm to use"
     )
-    parser.add_argument("-v", "--verbose", action="store_true", default=True)
+    parser.add_argument("-v", "--verbose", action="store_true")
     parser.add_argument("-t", "--sleep", type=float, default=0)
     parser.add_argument("-k", "--skip", type=int, default=100)
     parser.add_argument("-s", "--n_fast_moves", type=int, default=-2)
