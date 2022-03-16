@@ -4,14 +4,12 @@ import os
 import numpy as np
 import cv2
 from multiprocessing import Pool
-import psutil
-from torch.nn import parameter
 from configs import img_configs
 from copy import deepcopy as copy
 import pandas as pd
 import urllib
 from tqdm import tqdm
-from random import random, randint, SystemRandom
+from random import SystemRandom
 
 class DataHelper:
     def __init__(self):

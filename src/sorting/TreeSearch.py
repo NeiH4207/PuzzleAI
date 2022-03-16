@@ -1,12 +1,6 @@
-from copy import deepcopy
 import logging
-import math
-import cv2
 import numpy as np
-from numpy.core.fromnumeric import argmax
-from numpy.random.mtrand import dirichlet
 
-from src.data_helper import DataProcessor
 EPS = 1e-8
 log = logging.getLogger(__name__)
 
@@ -23,19 +17,20 @@ class TreeSearch():
         self.verbose = verbose
         self.depth = {}
         self.parent = {}
+        self.leafs = {}
     
     def search(self, state, k):
         state = state.copy()
-        
-        # if self.verbose:
-        #     state.save_image()
-        # state.show()
         actions = self.env.get_available_actions(state)
-    
         rewards = []
+        should_be_swap = False
         for action in actions:
+            if action[0] == 'select' and should_be_swap:
+                break
             rewards.append(self.env.get_strict_reward(state, action))
-        
+            if action[0] == 'swap' and rewards[-1] > 0:
+                should_be_swap = True
+            
         if len(rewards) == 0:
             return None, 100
         

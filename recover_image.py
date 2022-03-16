@@ -15,12 +15,13 @@ from src.recover.environment import Environment, State, GameInfo
 from configs import *
 import argparse
 from src.screen import Screen
+seed(0)
 
 def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument('--game-info-path', type=str, default='./input/game_info/')
     parser.add_argument('--model-path', type=str, default='./trainned_models/')
-    parser.add_argument('--model-name', type=str, default=None)
+    parser.add_argument('--model-name', type=str, default='model')
     parser.add_argument('--output-path', type=str, default='./output/recovered_images/')
     parser.add_argument('-f', '--file-name', type=str, default='8x8')
     parser.add_argument('--image-size-out', type=int, default=(512, 512))   
@@ -40,7 +41,7 @@ def main():
     state.load_from_json(file_name=args.file_name + '.json')
     state.make()
     model = VGG('VGG7')
-    model.load(0, 1580, args.model_name)
+    model.load(0, 1000, args.model_name)
         
     model.eval()
     screen = Screen(state)
@@ -76,7 +77,7 @@ def main():
     print('Recovered image saved at: ' + args.output_path + args.file_name+ '.png')
     print('Time: {}'.format(end - start))
     DataProcessor.save_item_to_binary_file(
-        state,
+        state.small_copy(),
         'output/states/' + args.file_name.split('.')[0] + '.bin') # _' + args.file_name
     
 if __name__ == "__main__":

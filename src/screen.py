@@ -1,8 +1,6 @@
-from asyncio import threads
 import os
 import sys
 import time
-from turtle import done
 import numpy as np
 # from src.recover.environment import State
 import pygame
@@ -166,8 +164,12 @@ class Screen(object):
             # pygame.event.get()
             chosen_position = self.get_mouse_clicked_position()
             if chosen_position != None:
+                x, y = chosen_position
                 print(chosen_position)
-                waiting_mode = False    
+                if state.masked[x][y] == 0:
+                    waiting_mode = False    
+                else:
+                    state = env.remove(state, (x, y))
                 
             if state.depth >= state.max_depth:
                 n_jumps = 0
@@ -237,13 +239,11 @@ class Screen(object):
                 
             if self.back_1_button.pressed:
                 self.back_1_button.pressed = False
-                for _ in range(2):
-                    if state.parent is not None:
-                        state = state.parent
+                if state.parent is not None:
+                    state = state.parent
                 pygame.event.clear()
                 pygame.time.delay(500)
-                algo.threshold *= 1.1
-                waiting_mode = False
+                algo.threshold *= 1.02
                 continue
                 
             if self.back_5_button.pressed:
@@ -252,7 +252,7 @@ class Screen(object):
                     if state.parent is not None:
                         state = state.parent
                 pygame.event.clear()
-                algo.threshold *= 1.1
+                algo.threshold *= 1.02
                 pygame.time.delay(500)
                 waiting_mode = False
                 continue
@@ -270,7 +270,7 @@ class Screen(object):
             if self.jump_10_button.pressed:
                 self.jump_10_button.pressed = False
                 n_jumps += 10
-                algo.threshold *= 0.97
+                algo.threshold *= 0.98
                 pygame.event.clear()
                 pygame.time.delay(500)
                 text = self.warning_font.render('*', True, YELLOW)
@@ -280,7 +280,7 @@ class Screen(object):
             if self.jump_20_button.pressed:
                 self.jump_20_button.pressed = False
                 n_jumps += 20
-                algo.threshold *= 0.95
+                algo.threshold *= 0.97
                 pygame.event.clear()
                 pygame.time.delay(500)
                 text = self.warning_font.render('*', True, YELLOW)
