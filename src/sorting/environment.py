@@ -122,6 +122,8 @@ class State:
             self.n_swaps = 0
             self.mode = 'rgb'
             self.original_distance = 0
+            self.parent_states = set()
+            self.n_trues = 0
             self.make()
         
     def make(self):
@@ -168,6 +170,8 @@ class State:
         state.n_swaps = self.n_swaps
         state.name = self.name
         state.original_distance = self.original_distance
+        state.parent_states = deepcopy(self.parent_states)
+        state.n_trues = self.n_trues
         return state
        
     def string_presentation(self, items):
@@ -264,7 +268,10 @@ class Environment():
             cost_4 = min(abs(true_pos[0] - x1), state.shape[0] - abs(true_pos[0] - x1)) + \
                         min(abs(true_pos[1] - y1), state.shape[1] - abs(true_pos[1] - y1)) 
                          
-            reward = (1 - 500/(1000+random.uniform(0, 1))) * (cost_1 - cost_2) + (1 - 1/(10000+random.uniform(0, 1))) * (cost_3 - cost_4) \
+            mahattan_distance = self.get_mahattan_distance(state)
+            reward = (cost_1 - cost_2) +0.99 \
+                * (cost_3 - cost_4) * np.sqrt(1 - (state.original_distance - mahattan_distance) / \
+                state.original_distance) \
                 - self.r2
         else:
             x, y = action[1]
@@ -365,6 +372,13 @@ class Environment():
             next_s.n_swaps += 1
             pos = (x2, y2)
             next_s.curr_position = pos
+            next_s.n_trues = 0
+            pos = (next_s.n_trues // next_s.shape[1], next_s.n_trues % next_s.shape[1])
+            while next_s.targets[pos[0]][pos[1]] == next_s.n_trues:
+                next_s.n_trues += 1
+                pos = (next_s.n_trues // next_s.shape[1], next_s.n_trues % next_s.shape[1])
+                if pos[0] >= next_s.shape[0]:
+                    break
         else:
             position = action[1]
             next_s.curr_position = position
@@ -372,6 +386,7 @@ class Environment():
         next_s.depth += 1
         # state.actions.append(action)
         next_s.set_string_presentation()
+        next_s.parent_states.add(state.get_string_presentation())
         next_s.last_action = action
         return next_s
     

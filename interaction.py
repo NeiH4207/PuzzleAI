@@ -19,11 +19,11 @@ def parse_args():
     parser.add_argument("--sol-path", type=str, default="output/solutions")
     parser.add_argument("--output-path", type=str, default="./output/recovered_images/")
     parser.add_argument( "--token", type=str, 
-        default="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6NSwiaWF0IjoxNjQ2NzU2NDk2LCJleHAiOjE2NDY3NzQ0OTZ9.NpmbbF1mm3cOcSRcJdxptSjOTjn58LXkD8qg-FMAcpQ"
+        default="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6NSwiaWF0IjoxNjQ3NTc2NzEzLCJleHAiOjE2NDc1OTQ3MTN9.pQAC14HqPwvDAwD00uB1xQNu0iGjOwZzSVvWSaLsqPQ"
     )
     parser.add_argument("-s", "--tournament_name", type=str, default='Computer_Tour')
     parser.add_argument("-r", "--round_name", type=str, default='Computer_Round')
-    parser.add_argument("-m", "--match_name", type=str, default='color_12x9')
+    parser.add_argument("-m", "--match_name", type=str, default='bird')
     parser.add_argument("-p", "--mode", type=str, default='r')
     args = parser.parse_args()
     return args
@@ -32,7 +32,7 @@ def parse_args():
 def save(image, filename):
     cv2.imwrite(filename, image)
 
-def read(socket, tournament_name, round_name, match_name):
+def read(socket: Socket, tournament_name, round_name, match_name):
     tournaments = socket.get_tournament()
     for tournament in tournaments:
         if tournament['name'] == tournament_name:
@@ -69,7 +69,7 @@ def read(socket, tournament_name, round_name, match_name):
     game_info.select_swap_ratio = challenge_info[3]
     game_info.image_size = challenge_info[4]
     game_info.max_image_point_value = challenge_info[5]
-    game_info.original_block_size = image_blocks[0].shape[:2]
+    game_info.original_block_size = image_blocks.shape[-3:-1]
     game_info.original_blocks = image_blocks.tolist()
     game_info.mode = 'rgb'
     return game_info
