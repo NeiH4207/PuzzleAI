@@ -8,6 +8,7 @@ from src.sorting.MCTS import MCTS as GameMCTS
 from src.sorting.TreeSearch import TreeSearch
 from src.sorting.Standard import Standard
 from src.sorting.Astar import Astar
+from src.sorting.lecoDFS import lecoDFS
 from utils import *
 from configs import *
 import argparse
@@ -15,18 +16,18 @@ import argparse
 def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument("--state-path", type=str, default="output/states/")
-    parser.add_argument("-f", "--item-name", type=str, default="Natural_3")
+    parser.add_argument("-f", "--item-name", type=str, default="Natural_10")
     parser.add_argument("--output-path", type=str, default="./output/recovered_images/")
     parser.add_argument(
-        "-a", "--algorithm", type=str, default="standard", help="algorithm to use"
+        "-a", "--algorithm", type=str, default="leco", help="algorithm to use"
     )
-    parser.add_argument("-v", "--verbose", action="store_true")
+    parser.add_argument("-v", "--verbose", action="store_true", default=True)
     parser.add_argument("-t", "--sleep", type=float, default=0)
-    parser.add_argument("-k", "--skip", type=int, default=100)
-    parser.add_argument("-s", "--n_fast_moves", type=int, default=-2)
+    parser.add_argument("-k", "--skip", type=int, default=10)
+    parser.add_argument("-s", "--n_fast_moves", type=int, default=0)
     parser.add_argument("-r", "--rate", type=str, default="8/2")
     parser.add_argument("-c", "--max_select", type=int, default=None)
-    parser.add_argument("-d", "--depth", type=int, default=4)
+    parser.add_argument("-d", "--depth", type=int, default=3)
     parser.add_argument("-b", "--breadth", type=int, default=4)
     
     args = parser.parse_args()
@@ -54,7 +55,8 @@ def main():
     astar = Astar(env, verbose=False)
     stree = TreeSearch(env, args.depth, args.breadth, verbose=False)
     standard = Standard(env, verbose=False)
-
+    leco = lecoDFS(env, args.depth, args.breadth, verbose=False)
+    
     start = time.time()
     """ initialize the model """
     game_state.save_image()
@@ -82,6 +84,12 @@ def main():
             action = stree.get_action(game_state)
         elif args.algorithm == "standard":
             action = standard.get_action(game_state)
+        elif args.algorithm == "leco":
+            action = leco.get_action(game_state)
+            if game_state.n_selects == game_state.max_select - 2:
+                args.algorithm = "standard"
+                continue
+            
         if action is None:
             break
         game_state = env.step(game_state, action)
@@ -91,8 +99,9 @@ def main():
             # game_state.save_image()
             distance = env.get_mahattan_distance(game_state)
             haminton_distance = env.get_haminton_distance(game_state)
-            print("{}, {}".format(game_state.depth, action))
-            print("Overall Distance: {} / {}".format(distance, haminton_distance))
+            print("Num swaps: {}, Num selects: {}, Distance: {}, Haminton: {}".format(
+                game_state.n_swaps, game_state.n_selects, distance, haminton_distance
+            ))
             print("Time: {}".format(time.time() - start))
             sleep(args.sleep)
             

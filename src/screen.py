@@ -77,8 +77,8 @@ class Screen(object):
     
     '''
     def __init__(self, state):
-        self.height = state.block_dim[1]
-        self.width = state.block_dim[0]  
+        self.height = state.block_dim[0]
+        self.width = state.block_dim[1]  
         pygame.init()
         self.SQUARE_SIZE = state.block_size[0]
         SCREEN_SIZE = self.coord(self.width + 2, self.height + 5)
@@ -147,8 +147,10 @@ class Screen(object):
                     pos = pygame.mouse.get_pos()
                     x = pos[1] // self.SQUARE_SIZE
                     y = pos[0] // self.SQUARE_SIZE
-                    if x <= self.width and y <= self.height:
+                    if x <= self.height and y <= self.width:
                         return (x - 1, y - 1)
+                    else:
+                        return None
         else:
             return None
     
@@ -164,12 +166,14 @@ class Screen(object):
             # pygame.event.get()
             chosen_position = self.get_mouse_clicked_position()
             if chosen_position != None:
-                x, y = chosen_position
                 print(chosen_position)
-                if state.masked[x][y] == 0:
-                    waiting_mode = False    
-                else:
-                    state = env.remove(state, (x, y))
+                if chosen_position[0] < state.block_dim[0] and \
+                    chosen_position[1] < state.block_dim[1]:
+                    x, y = chosen_position
+                    if state.masked[x][y] == 0:
+                        waiting_mode = False    
+                    else:
+                        state = env.remove(state, (x, y))
                 
             if state.depth >= state.max_depth:
                 n_jumps = 0
@@ -177,57 +181,57 @@ class Screen(object):
                 waiting_mode = True
             
             if not waiting_mode:
-                try:
-                    actions, probs = algo.get_next_action(state, position=chosen_position)
-                    waiting_mode = True
-                    chosen_position = None
-                    recommended_block_position = 0
-                    action = actions[0]
-                    state = env.step(state, action)
-                    print('Probability: {} / {}'.format(
-                        np.round(probs[recommended_block_position], 2),
-                        algo.threshold))
-                    print('Step: {} / {}'.format(state.depth, state.max_depth))
-                    print('Time: %.3f' % (time.time() - start))
-                except Exception as e:
-                    print(e)
-                    waiting_mode = True
+                # try:
+                actions, probs = algo.get_next_action(state, position=chosen_position)
+                waiting_mode = True
+                chosen_position = None
+                recommended_block_position = 0
+                action = actions[0]
+                state = env.step(state, action)
+                print('Probability: {} / {}'.format(
+                    np.round(probs[recommended_block_position], 2),
+                    algo.threshold))
+                print('Step: {} / {}'.format(state.depth, state.max_depth))
+                print('Time: %.3f' % (time.time() - start))
+                # except Exception as e:
+                #     print(e)
+                #     waiting_mode = True
                     
             
             if n_jumps > 0:
-                try:
-                    if probs[0] > 0.1:
-                        waiting_mode = False
-                        n_jumps -= 1
-                        self.render(state)
-                        continue
-                    else:
-                        n_jumps = 0
-                except Exception as e:
-                    print(e)
+                # try:
+                if probs[0] > 0.1:
+                    waiting_mode = False
+                    n_jumps -= 1
+                    self.render(state)
+                    continue
+                else:
+                    n_jumps = 0
+                # except Exception as e:
+                #     print(e)
             else:
                 text = self.warning_font.render('*', True, BLACK)
                 self.screen.blit(text, self.coord(1, self.height + 1))
             
             if self.reject_button.pressed:
-                try:
-                    recommended_block_position += 1
-                    recommended_block_position %= len(actions)
-                    self.reject_button.pressed = False
-                    action = actions[recommended_block_position]
-                    print('Probability: {} / {}'.format(
-                        np.round(probs[recommended_block_position], 2),
-                        algo.threshold))
-                    print('Step: {} / {}'.format(state.depth, state.max_depth))
-                    print('Time: %.3f' % (time.time() - start))
-                    if state.parent is not None:
-                        state = state.parent
-                    state = env.step(state, action)
-                    pygame.event.clear()
-                    pygame.time.delay(500)
-                    continue
-                except Exception as e:
-                    print(e)
+                # try:
+                recommended_block_position += 1
+                recommended_block_position %= len(actions)
+                self.reject_button.pressed = False
+                action = actions[recommended_block_position]
+                print('Probability: {} / {}'.format(
+                    np.round(probs[recommended_block_position], 2),
+                    algo.threshold))
+                print('Step: {} / {}'.format(state.depth, state.max_depth))
+                print('Time: %.3f' % (time.time() - start))
+                if state.parent is not None:
+                    state = state.parent
+                state = env.step(state, action)
+                pygame.event.clear()
+                pygame.time.delay(500)
+                continue
+                # except Exception as e:
+                #     print(e)
             
             if self.accept_button.pressed:
                 n_jumps -= 1

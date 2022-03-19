@@ -202,36 +202,37 @@ class State(GameInfo):
         cp_inverse = np.zeros((self.block_dim[0], self.block_dim[1], 3), dtype=np.int8)
         cp_std_errs = np.zeros(self.block_dim, dtype=np.float32)
         if mode == 'down':
-            for i in range(self.block_dim[0]):
+            for i in range(self.block_dim[0]-1):
                 for j in range(self.block_dim[1]):
-                    cp_dropped_blocks[(i + 1)%self.block_dim[0]][j] = self.dropped_blocks[i][j]
-                    cp_masked[(i + 1)%self.block_dim[0]][j] = self.masked[i][j]
-                    cp_inverse[(i + 1)%self.block_dim[0]][j] = self.inverse[i][j]
-                    cp_std_errs[(i + 1)%self.block_dim[0]][j] = self.std_errs[i][j]
+                    cp_dropped_blocks[(i + 1)][j] = self.dropped_blocks[i][j]
+                    cp_masked[(i + 1)][j] = self.masked[i][j]
+                    cp_inverse[(i + 1)][j] = self.inverse[i][j]
+                    cp_std_errs[(i + 1)][j] = self.std_errs[i][j]
                     
         if mode == 'right':
             for i in range(self.block_dim[0]):
-                for j in range(self.block_dim[1]):
-                    cp_dropped_blocks[i][(j + 1)%self.block_dim[1]] = self.dropped_blocks[i][j]
-                    cp_masked[i][(j + 1)%self.block_dim[1]] = self.masked[i][j]
-                    cp_inverse[i][(j + 1)%self.block_dim[1]] = self.inverse[i][j]
-                    cp_std_errs[i][(j + 1)%self.block_dim[1]] = self.std_errs[i][j]
+                for j in range(self.block_dim[1]-1):
+                    cp_dropped_blocks[i][j + 1] = self.dropped_blocks[i][j]
+                    cp_masked[i][j + 1] = self.masked[i][j]
+                    cp_inverse[i][j + 1] = self.inverse[i][j]
+                    cp_std_errs[i][j + 1] = self.std_errs[i][j]
                     
         if mode == 'up':
-            for i in range(self.block_dim[0]):
+            for i in range(1, self.block_dim[0]):
                 for j in range(self.block_dim[1]):
-                    cp_dropped_blocks[(i - 1)%self.block_dim[0]][j] = self.dropped_blocks[i][j]
-                    cp_masked[(i - 1)%self.block_dim[0]][j] = self.masked[i][j]
-                    cp_inverse[(i - 1)%self.block_dim[0]][j] = self.inverse[i][j]
-                    cp_std_errs[(i - 1)%self.block_dim[0]][j] = self.std_errs[i][j]
+                    cp_dropped_blocks[(i - 1)][j] = self.dropped_blocks[i][j]
+                    cp_masked[(i - 1)][j] = self.masked[i][j]
+                    cp_inverse[(i - 1)][j] = self.inverse[i][j]
+                    cp_std_errs[(i - 1)][j] = self.std_errs[i][j]
             
         if mode == 'left':
+            print('left')
             for i in range(self.block_dim[0]):
-                for j in range(self.block_dim[1]):
-                    cp_dropped_blocks[i][(j - 1)%self.block_dim[1]] = self.dropped_blocks[i][j]
-                    cp_masked[i][(j - 1)%self.block_dim[1]] = self.masked[i][j]
-                    cp_inverse[i][(j - 1)%self.block_dim[1]] = self.inverse[i][j]
-                    cp_std_errs[i][(j - 1)%self.block_dim[1]] = self.std_errs[i][j]
+                for j in range(1, self.block_dim[1]):
+                    cp_dropped_blocks[i][j - 1] = self.dropped_blocks[i][j]
+                    cp_masked[i][j - 1] = self.masked[i][j]
+                    cp_inverse[i][j - 1] = self.inverse[i][j]
+                    cp_std_errs[i][j - 1] = self.std_errs[i][j]
         
         self.dropped_blocks = cp_dropped_blocks
         self.masked = cp_masked
@@ -283,14 +284,15 @@ class Environment():
         next_s = state.copy()
         if x == -1:
             next_s.translation('down')
-            next_s.bottom_right_corner[0] += 1
             x = 0
-        
+        elif x > next_s.bottom_right_corner[0]:
+            next_s.bottom_right_corner[0] += 1
         if y == -1:
             next_s.translation('right')
-            next_s.bottom_right_corner[1] += 1
             y = 0
-        
+        elif y > next_s.bottom_right_corner[1]:
+            next_s.bottom_right_corner[1] += 1
+    
         next_s.dropped_blocks[x][y] = np.rot90(state.blocks[_x][_y], k=angle)
         next_s.masked[x][y] = 1
         next_s.actions.append(action)
@@ -317,16 +319,16 @@ class Environment():
         
         if x == 0:
             sum_x = 0
-            for i in range(state.block_dim[1]):
-                sum_x += state.masked[0][i]
+            for i in range(next_s.block_dim[1]):
+                sum_x += next_s.masked[0][i]
             if sum_x == 0:
                 next_s.translation('up')
                 next_s.bottom_right_corner[0] -= 1
         
         if y == 0:
             sum_y = 0
-            for i in range(state.block_dim[0]):
-                sum_y += state.masked[i][0]
+            for i in range(next_s.block_dim[0]):
+                sum_y += next_s.masked[i][0]
             if sum_y == 0:
                 next_s.translation('left')
                 next_s.bottom_right_corner[1] -= 1
@@ -387,14 +389,14 @@ class Environment():
                         if new_x >= state.block_dim[0] \
                             or new_y >= state.block_dim[1]:
                             continue
-                        if ((new_x < 0 and state.bottom_right_corner[0] < state.block_dim[0] - 1) \
+                        if ((new_x < 0 and state.bottom_right_corner[0] < state.block_dim[0] - 1 and new_y >= 0) \
                                 and (new_y < 0 and state.bottom_right_corner[1] < state.block_dim[1])) \
                                 or state.masked[new_x][new_y] == 0:
                             chosen_block_ids.add((new_x, new_y))
                             from_position[(new_x, new_y)] = (x, y)
     
         ranks = {}
-        max_rank = 0
+        max_rank = -np.inf
         for x, y in chosen_block_ids:
             counts = np.zeros((2, 2), dtype=np.int8)
             corner = (x - 1, y - 1)
