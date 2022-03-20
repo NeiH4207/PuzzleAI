@@ -56,7 +56,7 @@ class MCTS():
                         self.blocks_rotated[i][j][k] = np.rot90(state.blocks[i][j], k=k)
                         
         for _ in range(self.n_sim):
-            self.search(state)
+            self.search(state, position=position)
 
         counts = []
         actions = []
@@ -83,7 +83,7 @@ class MCTS():
         actions = np.array(actions, dtype=object)[index]
         return actions, probs
     
-    def search(self, state):
+    def search(self, state, position=None):
         """
         This function performs one iteration of MCTS. It is recursively called
         till a leaf node is found. The action chosen at each node is one that
@@ -110,17 +110,18 @@ class MCTS():
         if self.verbose:
             state.save_image()
         if s not in self.Ps:
-            # leaf node
-            probs = []
             lost_positions = []
             for i in range(state.block_dim[0]):
                 for j in range(state.block_dim[1]):
                     if state.lost_block_labels[i][j] == 1:
                         lost_positions.append((i, j))
-            
-            self.Ps[s] = {}
             stop = False
-            valid_block_pos, best_pos, ranks = self.env.get_valid_block_pos(state, kmax=self.n_bests)
+            probs = []
+            actions = []
+            valid_block_pos, best_pos, ranks = self.env.get_valid_block_pos(state, 
+                                                                        kmax=self.n_bests, 
+                                                                        last_state=False,
+                                                                        position=position)
             for x, y in valid_block_pos:
                 for _x, _y in lost_positions:
                     # get dropped_subblocks 2x2 from dropped_blocks
@@ -130,61 +131,35 @@ class MCTS():
                         [state.dropped_blocks[i + 1][j], state.dropped_blocks[i + 1][j + 1]]), dtype=np.uint8)
                     index = np.zeros(4, dtype=np.int32)
                     index[(x - i) * 2 + (y - j)] = 1
-                    lost_block_labels = np.array((
-                        [state.lost_block_labels[i][j], state.lost_block_labels[i][j + 1]],
-                        [state.lost_block_labels[i + 1][j], state.lost_block_labels[i + 1][j + 1]]), dtype=np.uint8)
-                    
-                    index = np.concatenate((index, lost_block_labels.flatten()), axis=0)
+                    mask = np.array([
+                        state.masked[i][j], state.masked[i][j + 1],
+                        state.masked[i + 1][j], state.masked[i + 1][j + 1]], dtype=np.uint8)
+                    mask[(x - i) * 2 + (y - j)] = 1
+                    index = np.concatenate((index, 1 - mask.flatten()), axis=0)
                     indexes = [index] * 4
                     images = []
-                    actions= []
                     for angle in range(4):
-                        block =  self.blocks_rotated[_x][_y][angle]
-                        subblocks[x - i][y - j] = block
-                        # subblocks[x - i][y - j] = self.blocks_rotated[_x][_y][angle]
-                        recovered_image = DataProcessor.merge_blocks(subblocks, self.mask)
+                        subblocks[x - i][y - j] = self.blocks_rotated[_x][_y][angle]
+                        recovered_image = DataProcessor.merge_blocks(subblocks, mask=self.mask)
                         recovered_image_ = DataProcessor.convert_image_to_three_dim(recovered_image)
+                        # cv2.imwrite('output/sample.png', recovered_image)
                         images.append(recovered_image_)
-                        # prob = self.model.predict(recovered_image_, index) ** 2
                         action = ((x, y), (_x, _y), angle)
-                        # subblocks[x - i][y - j] = np.zeros(state.block_shape, dtype=np.uint8)
-                        # new_image = deepcopy(state.dropped_blocks)
-                        # new_image[x][y] = np.rot90(state.blocks[_x][_y], k=angle)
-                        # new_image_ = DataProcessor.merge_blocks(new_image)
-                        # cv2.imwrite('output/sample.png', new_image_)
-                        # print(action,  prob)
-                        # probs.append(prob)
                         actions.append(action)
                     _probs = self.model.predict(images, indexes)
                     probs.extend(_probs)
-                    for i in range(4):
-                        self.Ps[s][actions[i]] = _probs[i]
-                        
                     if np.max(_probs) > self.threshold:
                         stop = True
                         break
-                    # for angle in range(4):
-                    #     block = np.rot90(state.blocks[_x][_y], k=angle)
-                    #     subblocks[x - i][y - j] = block
-                    #     recovered_image = DataProcessor.merge_blocks(subblocks)
-                    #     recovered_image_ = DataProcessor.convert_image_to_three_dim(recovered_image)
-                    #     prob = self.model.predict([recovered_image_], [index]) ** 2
-                    #     action = ((x, y), (_x, _y), angle)
-                    #     self.Ps[s][action] = prob
-                    #     # subblocks[x - i][y - j] = np.zeros(state.block_shape, dtype=np.uint8)
-                    #     # new_image = deepcopy(state.dropped_blocks)
-                    #     # new_image[x][y] = np.rot90(state.blocks[_x][_y], k=angle)
-                    #     # new_image_ = DataProcessor.merge_blocks(new_image)
-                    #     # cv2.imwrite('output/sample.png', new_image_)
-                    #     # print(action,  prob)
-                    #     probs.append(prob) # * 0.9 + 0.1 * ranks[x][y])
-                    #     if prob > self.threshold:
-                    #         stop = True
-                    #         break
-                    # if stop:
-                    #     break
+                    if stop:
+                        break
                 if stop:
                     break
+                    
+            self.Ps[s] = {}
+            
+            for i in range(len(actions)):
+                self.Ps[s][actions[i]] = probs[i]
             self.Ns[s] = 0
             return max(probs)
      

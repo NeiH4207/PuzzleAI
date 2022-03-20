@@ -1,17 +1,12 @@
 ''' python3 recover_image.py -f natural_1 -v -m '''
-from turtle import position
 import cv2
 import numpy as np
-from models.ProNet2 import ProNet2
-from models.dla import DLA
-from models.SimpleProNet import ProNet as SimpleProNet
-# from models.VGG import ProNet
 from models.VGG import VGG
 from src.data_helper import DataProcessor
 from src.recover.MCTS import MCTS
 from src.recover.greedy import Greedy
 from utils import *
-from src.recover.environment import Environment, State, GameInfo
+from src.recover.environment import Environment, State
 from configs import *
 import argparse
 from src.screen import Screen
@@ -23,12 +18,12 @@ def parse_args():
     parser.add_argument('--model-path', type=str, default='./trainned_models/')
     parser.add_argument('--model-name', type=str, default='model')
     parser.add_argument('--output-path', type=str, default='./output/recovered_images/')
-    parser.add_argument('-f', '--file-name', type=str, default='red_black')
+    parser.add_argument('-f', '--file-name', type=str, default='matrix_4x4_test_2')
     parser.add_argument('--image-size-out', type=int, default=(512, 512))   
     parser.add_argument('-s', '--block-size', type=int, default=(32, 32))
-    parser.add_argument('-a', '--algorithm', type=str, default='greedy')
+    parser.add_argument('-a', '--algorithm', type=str, default='mcts')
     parser.add_argument('-v', '--verbose', action='store_true')
-    parser.add_argument('-m', '--monitor', action='store_true')
+    parser.add_argument('--simple', action='store_true', default=True)
     parser.add_argument('-t', '--threshold', type=float, default=1.0)
     parser.add_argument('-j', '--n_jumps', type=float, default=0)
     
@@ -44,14 +39,12 @@ def main():
     model.load(0, 1000, args.model_name)
         
     model.eval()
-    screen = Screen(state)
-    screen.render(state)
     env = Environment()
     if args.algorithm == 'greedy':
         algo = Greedy(env, model, verbose=args.verbose, 
                     n_bests=4, threshold=args.threshold)
     elif args.algorithm == 'mcts':
-        algo = MCTS(env, model, n_sim=8, 
+        algo = MCTS(env, model, n_sim=3, 
                 c_puct=1, threshold=args.threshold,
                 n_bests=3, verbose=False)
     else:
@@ -61,7 +54,16 @@ def main():
     print('Threshold:', args.threshold)
     
     start = time.time()
-    state = screen.start(env,state, algo)
+    
+    if args.simple:
+        state.to_simple_mode()
+        screen = Screen(state)
+        screen.render(state)
+        state = screen.start_2(env, state)
+    else:
+        screen = Screen(state)
+        screen.render(state)
+        state = screen.start(env, state, algo)
         
     new_blocks = np.zeros(state.original_blocks.shape, dtype=np.uint8)
     for i in range(state.block_dim[0]):

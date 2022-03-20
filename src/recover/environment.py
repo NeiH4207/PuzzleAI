@@ -116,12 +116,17 @@ class State(GameInfo):
         self.probs = [1.0] 
         self.actions = []
         self.last_action = (0, 0)
+        self.n_moves = 0
         self.inverse = np.zeros((self.block_dim[0], self.block_dim[1], 3), dtype=np.int8)
         for i in range(self.block_dim[0]):
             for j in range(self.block_dim[1]):
                 self.inverse[i][j] = (i, j, 0)
         self.mode = 'rgb'
-     
+    
+    def to_simple_mode(self):
+        self.dropped_blocks = deepcopy(self.blocks)
+        self.masked = np.ones((self.block_dim[0], self.block_dim[1]), dtype=np.int8)
+            
     def copy(self):
         """
         Returns a copy of the state.
@@ -149,6 +154,7 @@ class State(GameInfo):
         state.max_n_selects = self.max_n_selects
         state.mode = self.mode
         state.name = self.name
+        state.n_moves = self.n_moves
         return state
     
     
@@ -276,9 +282,8 @@ class Environment():
         """
         Performs an action in the environment.
         """
-        # s_name = state.get_string_presentation()
-        # if (s_name, action) in self.next_step:
-        #     state.child = self.next_step[(s_name, action)]
+        s_name = state.get_string_presentation()
+        # if (s_name, str(action)) in self.next_step:
         #     return self.next_step[(s_name, action)]
         (x, y), (_x, _y), angle = action
         next_s = state.copy()
@@ -301,9 +306,24 @@ class Environment():
         next_s.depth += 1
         next_s.last_action = (x, y)
         next_s.set_string_presentation()
-        # self.next_step[(s_name, action)] = next_s
+        # self.next_step[(s_name, str(action))] = next_s
         next_s.parent = state
         return next_s
+    
+    def simple_step(self, state, action):
+        x, y, angle = action
+        next_s = state.copy()
+        target = (next_s.n_moves//next_s.block_dim[0], next_s.n_moves%next_s.block_dim[0])
+        next_s.inverse[target[0]][target[1]] = (x, y, angle)
+        next_s.dropped_blocks[x][y] = np.zeros((next_s.block_size[0], next_s.block_size[1], 3), dtype=np.float32)
+        next_s.masked[x][y] = 0
+        next_s.n_moves += 1
+        next_s.depth += 1
+        next_s.last_action = (x, y)
+        next_s.set_string_presentation()
+        next_s.parent = state
+        return next_s
+        
     
     def remove(self, state, action):
         x, y = action
