@@ -269,7 +269,7 @@ class Environment():
                         min(abs(true_pos[1] - y1), state.shape[1] - abs(true_pos[1] - y1)) 
                          
             mahattan_distance = self.get_mahattan_distance(state)
-            reward = (cost_1 - cost_2) +0.99 \
+            reward = (cost_1 - cost_2) + 5 \
                 * (cost_3 - cost_4) * np.sqrt(1 - (state.original_distance - mahattan_distance) / \
                 state.original_distance) \
                 - self.r2

@@ -1,3 +1,4 @@
+from copy import deepcopy
 import os
 import sys
 import time
@@ -70,6 +71,7 @@ GREY = (100, 100, 100)
 BLACK = (0, 0, 0)
 WHITE = (255, 255, 255)
 YELLOW = (255, 255, 0)
+RED = (255, 0, 0)
 
 class Screen(object):
     '''
@@ -101,6 +103,8 @@ class Screen(object):
                                     self.coord(2, self.height + 3), 0)
         self.done_button = Button('DN', self.SQUARE_SIZE, self.SQUARE_SIZE,
                                     self.coord(3, self.height + 3), 0)
+        self.rotate_button = Button('RT', self.SQUARE_SIZE, self.SQUARE_SIZE,
+                                    self.coord(0, self.height + 4), 0)
         self.buttons = [self.accept_button, 
                         self.reject_button,
                         self.jump_5_button,
@@ -108,6 +112,7 @@ class Screen(object):
                         self.jump_20_button,
                         self.back_1_button,
                         self.back_5_button,
+                        self.rotate_button,
                         self.done_button]
         # grey background
         # self.screen.fill((100, 100, 100))
@@ -128,12 +133,28 @@ class Screen(object):
         for b in self.buttons:
             b.draw(self.screen)
             
-    def render(self, state, show_button = True):
+    def render(self, state, curpos=None, show_button = True):
         state.save_image()
         image = pygame.image.load('output/sample.png')
         image = pygame.transform.scale(image, self.coord(self.width, self.height))
         self.screen.blit(image, self.coord(1, 1))
         self.buttons_draw()
+        
+        if curpos:
+            curpos = (curpos[1] + 1, curpos[0] + 1)
+            # draw a red line rectangle to the mouse position
+            x1, y1 = self.coord(curpos[0], curpos[1])
+            x1 += 1
+            y1 += 1
+            x2, y2 = self.coord(curpos[0] + 1, curpos[1] + 1)
+            x2 -= 1
+            y2 -= 1
+            pygame.draw.line(self.screen, RED, (x1, y1), (x2, y1), LINE_WIDTH)
+            pygame.draw.line(self.screen, RED, (x2, y1), (x2, y2), LINE_WIDTH)
+            pygame.draw.line(self.screen, RED, (x2, y2), (x1, y2), LINE_WIDTH)
+            pygame.draw.line(self.screen, RED, (x1, y2), (x1, y1), LINE_WIDTH)
+            pygame.display.update()
+                
         pygame.display.update()
     
     def get_mouse_clicked_position(self):
@@ -247,7 +268,7 @@ class Screen(object):
                     state = state.parent
                 pygame.event.clear()
                 pygame.time.delay(500)
-                algo.threshold *= 1.02
+                # algo.threshold *= 1.02
                 continue
                 
             if self.back_5_button.pressed:
@@ -256,7 +277,7 @@ class Screen(object):
                     if state.parent is not None:
                         state = state.parent
                 pygame.event.clear()
-                algo.threshold *= 1.02
+                # algo.threshold *= 1.02
                 pygame.time.delay(500)
                 waiting_mode = False
                 continue
@@ -264,7 +285,7 @@ class Screen(object):
             if self.jump_5_button.pressed:
                 self.jump_5_button.pressed = False
                 n_jumps += 5
-                algo.threshold *= 0.99
+                # algo.threshold *= 0.99
                 pygame.event.clear()
                 pygame.time.delay(500)
                 text = self.warning_font.render('*', True, YELLOW)
@@ -274,7 +295,7 @@ class Screen(object):
             if self.jump_10_button.pressed:
                 self.jump_10_button.pressed = False
                 n_jumps += 10
-                algo.threshold *= 0.98
+                # algo.threshold *= 0.98
                 pygame.event.clear()
                 pygame.time.delay(500)
                 text = self.warning_font.render('*', True, YELLOW)
@@ -284,7 +305,7 @@ class Screen(object):
             if self.jump_20_button.pressed:
                 self.jump_20_button.pressed = False
                 n_jumps += 20
-                algo.threshold *= 0.97
+                # algo.threshold *= 0.97
                 pygame.event.clear()
                 pygame.time.delay(500)
                 text = self.warning_font.render('*', True, YELLOW)
@@ -292,5 +313,81 @@ class Screen(object):
                 continue
             
             self.render(state)
+            
+        
+    def start_2(self, env, state):
+        chosen_position = None
+        action = None
+        start = time.time()
+        k_rotates = 0
+        curpos = None
+        while self.done_button.pressed == False:
+            # pygame.event.get()
+            self.render(state, curpos)
+            chosen_position = self.get_mouse_clicked_position()
+                
+            if chosen_position:
+                if state.masked[chosen_position[0]][chosen_position[1]] == 0:
+                    chosen_position = None
+                if curpos == chosen_position:
+                    self.rotate_button.pressed = True
+                elif curpos != None:
+                    action = (curpos[0], curpos[1], k_rotates)
+                    state = env.simple_step(state, action)
+                    pygame.time.delay(30)
+                    pygame.event.clear()
+                    k_rotates = 0
+                curpos = chosen_position
+                pygame.time.delay(30)
+                pygame.event.clear()
+                print('Chosen position: {}'.format(curpos))
+                
+                
+            if self.back_1_button.pressed:
+                self.back_1_button.pressed = False
+                if state.parent is not None:
+                    state = state.parent
+                x, y = state.last_action
+                state.dropped_blocks[x][y] = deepcopy(state.blocks[x][y])
+                curpos = None
+                k_rotates = 0
+                pygame.time.delay(30)
+                pygame.event.clear()
+                continue
+                
+            if self.back_5_button.pressed:
+                self.back_5_button.pressed = False
+                for _ in range(6):
+                    if state.parent is not None:
+                        state = state.parent
+                state.dropped_blocks[x][y] = state.blocks[x][y]
+                curpos = None
+                k_rotates = 0
+                pygame.time.delay(30)
+                pygame.event.clear()
+                continue
     
+                
+            if curpos is None:
+                continue
+                
+            if self.rotate_button.pressed:
+                self.rotate_button.pressed = False
+                k_rotates = (k_rotates + 1) % 4
+                x, y = curpos
+                state.dropped_blocks[x][y] = np.rot90(state.blocks[x][y], k_rotates)  
+                pygame.time.delay(30)   
+                pygame.event.clear()
+                continue
+            
+            if self.accept_button.pressed:
+                self.accept_button.pressed = False
+                action = (curpos[0], curpos[1], k_rotates)
+                state = env.simple_step(state, action)
+                pygame.time.delay(30)
+                pygame.event.clear()
+                curpos = None
+                k_rotates = 0
+                continue
+                
         return state
