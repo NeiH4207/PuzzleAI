@@ -21,7 +21,7 @@ def get_dataset(file_dir, file_name, iter, saved=False):
         dataset = DataProcessor.generate_data(dataset, 
                                         img_configs['block-dim'],
                                         img_configs['block-size'],
-                                        n_jobs=2)
+                                        n_jobs=8)
         
         # DataProcessor.save_data_to_binary_file(dataset, "input/data/64x64/train_batchs/dataset_{}.bin".format(iter))
         trainset, testset = DataProcessor.split_dataset(dataset, 0.95, saved=False)
@@ -43,7 +43,7 @@ def main():
                       save_every=500
                       )
     
-    trainer.model.load(0, 1580)
+    # trainer.model.load(0, 1580)
 
     for i in range(0, configs['num-dataset']):
         file_name = "image_data_batch_{}.bin".format(i)

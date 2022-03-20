@@ -210,7 +210,7 @@ class DataHelper:
                             else:
                                 cp_sub_img[m//2][m%2] = blocks[x][y]
                             recovered_image = self.merge_blocks(cp_sub_img)
-                            cv2.imwrite('output/sample.png', recovered_image)
+                            # cv2.imwrite('output/sample.png', recovered_image)
                             index = np.zeros(4, dtype=np.uint8)
                             index[m] = 1 
                             index = np.concatenate((index, lost_positions[k]), axis=0)

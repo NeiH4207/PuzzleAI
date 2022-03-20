@@ -26,8 +26,8 @@ class VGG(Pronet):
     def __init__(self, name, using_gpu=False):
         super(Pronet, self).__init__()
         self.features = self._make_layers(cfg[name])
-        self.fc1 = nn.Linear(4 * cfg[name][-2] + 8, 32)
-        self.fc2 = nn.Linear(32, 1)
+        self.fc1 = nn.Linear(4 * 4 * cfg[name][-2] + 8, 64)
+        self.fc2 = nn.Linear(64, 1)
         self.name = name
         self.name = 'ProNet'
         self.device = 'cuda' if torch.cuda.is_available() and using_gpu else 'cpu'
