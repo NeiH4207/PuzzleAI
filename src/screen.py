@@ -313,6 +313,7 @@ class Screen(object):
                 continue
             
             self.render(state)
+        return state
             
         
     def start_2(self, env, state):

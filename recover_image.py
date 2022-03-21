@@ -21,9 +21,9 @@ def parse_args():
     parser.add_argument('-f', '--file-name', type=str, default='matrix_4x4_test_2')
     parser.add_argument('--image-size-out', type=int, default=(512, 512))   
     parser.add_argument('-s', '--block-size', type=int, default=(32, 32))
-    parser.add_argument('-a', '--algorithm', type=str, default='mcts')
+    parser.add_argument('-a', '--algorithm', type=str, default='greedy')
     parser.add_argument('-v', '--verbose', action='store_true')
-    parser.add_argument('--simple', action='store_true', default=True)
+    parser.add_argument('--simple', action='store_true')
     parser.add_argument('-t', '--threshold', type=float, default=1.0)
     parser.add_argument('-j', '--n_jumps', type=float, default=0)
     
@@ -65,18 +65,18 @@ def main():
         screen.render(state)
         state = screen.start(env, state, algo)
         
-    new_blocks = np.zeros(state.original_blocks.shape, dtype=np.uint8)
-    for i in range(state.block_dim[0]):
-        for j in range(state.block_dim[1]):
-            x, y, angle = state.inverse[i][j]
-            new_blocks[i][j] = np.rot90(state.original_blocks[x][y], k=angle)
-    recovered_image = DataProcessor.merge_blocks(new_blocks)
+    # new_blocks = np.zeros(state.original_blocks.shape, dtype=np.uint8)
+    # for i in range(state.block_dim[0]):
+    #     for j in range(state.block_dim[1]):
+    #         x, y, angle = state.inverse[i][j]
+    #         new_blocks[i][j] = np.rot90(state.original_blocks[x][y], k=angle)
+    # recovered_image = DataProcessor.merge_blocks(new_blocks)
 
     end = time.time()
     
     # recovered_image = cv2.resize(recovered_image, args.image_size_out)
-    cv2.imwrite(args.output_path + args.file_name + '.png', recovered_image)
-    print('Recovered image saved at: ' + args.output_path + args.file_name+ '.png')
+    # cv2.imwrite(args.output_path + args.file_name + '.png', recovered_image)
+    # print('Recovered image saved at: ' + args.output_path + args.file_name+ '.png')
     print('Time: {}'.format(end - start))
     DataProcessor.save_item_to_binary_file(
         state.small_copy(),

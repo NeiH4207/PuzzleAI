@@ -219,38 +219,6 @@ class Environment():
     def reset(self):
         return
     
-    def get_reward(self, state, action):
-        reward = 0
-        if action[0] == 'swap':
-            x1, y1, x2, y2 = action[1]
-            true_pos = (state.targets[x1][y1] // state.shape[1],\
-                          state.targets[x1][y1] % state.shape[1])
-            cost_1 = min(abs(true_pos[0] - x1), state.shape[0] - abs(true_pos[0] - x1)) + \
-                        min(abs(true_pos[1] - y1), state.shape[1] - abs(true_pos[1] - y1))
-            cost_2 = min(abs(true_pos[0] - x2), state.shape[0] - abs(true_pos[0] - x2)) + \
-                        min(abs(true_pos[1] - y2), state.shape[1] - abs(true_pos[1] - y2))
-            true_pos = (state.targets[x2][y2] // state.shape[1],\
-                        state.targets[x2][y2] % state.shape[1])
-            cost_3 = min(abs(true_pos[0] - x2), state.shape[0] - abs(true_pos[0] - x2)) + \
-                        min(abs(true_pos[1] - y2), state.shape[1] - abs(true_pos[1] - y2))
-            cost_4 = min(abs(true_pos[0] - x1), state.shape[0] - abs(true_pos[0] - x1)) + \
-                        min(abs(true_pos[1] - y1), state.shape[1] - abs(true_pos[1] - y1)) 
-                 
-            reward = 0.5 * (cost_1 - cost_2) + (cost_3 - cost_4) \
-                - self.r2 * 0.001
-        else:
-            # x, y = action[1]
-            # true_pos = (state.targets[x][y] // state.shape[1],\
-            #                 state.targets[x][y] %    state.shape[1])
-            # cost_1 = min(abs(true_pos[0] - x), state.shape[0] - abs(true_pos[0] - x)) + \
-            #             min(abs(true_pos[1] - y), state.shape[1] - abs(true_pos[1] - y))
-                
-            reward = - self.r1 * 0.001
-        # mn = - 2 - min(self.r1, self.r2)
-        # mx = 2 + max(self.r1, self.r2)
-        return reward
-    
-    
     def get_strict_reward(self, state, action):
         reward = 0
         if action[0] == 'swap':
@@ -269,7 +237,7 @@ class Environment():
                         min(abs(true_pos[1] - y1), state.shape[1] - abs(true_pos[1] - y1)) 
                          
             mahattan_distance = self.get_mahattan_distance(state)
-            reward = (cost_1 - cost_2) + 5 \
+            reward = (cost_1 - cost_2) + 0.99 \
                 * (cost_3 - cost_4) * np.sqrt(1 - (state.original_distance - mahattan_distance) / \
                 state.original_distance) \
                 - self.r2

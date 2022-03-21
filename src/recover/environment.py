@@ -34,7 +34,6 @@ class GameInfo():
             'select_swap_ratio': self.select_swap_ratio,
             'image_size': self.image_size,
             'max_image_point_value': self.max_image_point_value,
-            'original_blocks': self.original_blocks,
             'mode': self.mode
         }
         # dump to pretty json file
@@ -54,7 +53,6 @@ class GameInfo():
         # set attributes
         self.block_dim = data['block_dim']
         self.original_block_size = data['original_block_size']
-        self.original_blocks = data['original_blocks']
         self.max_n_selects = data['max_n_selects']
         self.select_swap_ratio = data['select_swap_ratio']
         self.image_size = data['image_size']
