@@ -3,7 +3,7 @@ import os
 import random
 import cv2
 import json
-
+from skimage.metrics import structural_similarity as compare_ssim
 import numpy as np
 from src.data_helper import DataProcessor
 
@@ -85,6 +85,7 @@ class State(GameInfo):
         self.bottom_right_corner = [0, 0]
         self.parent = None
         self.child = None
+        self.file_name = None
         
     def make(self):
         self.block_shape = (self.block_size[0], self.block_size[1], 3)
@@ -118,18 +119,72 @@ class State(GameInfo):
         self.inverse = np.zeros((self.block_dim[0], self.block_dim[1], 3), dtype=np.int8)
         for i in range(self.block_dim[0]):
             for j in range(self.block_dim[1]):
-                self.inverse[i][j] = (i, j, 0)
+                self.inverse[i][j] = (i, j, -1)
         self.mode = 'rgb'
     
     def to_simple_mode(self):
         self.dropped_blocks = deepcopy(self.blocks)
         self.masked = np.ones((self.block_dim[0], self.block_dim[1]), dtype=np.int8)
+    
+    def to_ref_mode(self, ref_image):
+        self.ref_img = cv2.resize(ref_image, (self.original_block_size[0] * self.block_dim[1],
+                                                self.original_block_size[1] * self.block_dim[0]), interpolation=cv2.INTER_AREA)
+        self.ref_blocks = DataProcessor.split_image_to_blocks(self.ref_img, block_dim=(self.block_dim[0], self.block_dim[1]))
+        self.masked = np.zeros((self.block_dim[0], self.block_dim[1]), dtype=np.int8)
+        
+        all_actions = []
+        values = []
+        for i in range(self.block_dim[0]):
+            for j in range(self.block_dim[1]):
+                best_index = -1
+                best_score = -np.inf
+                total_val = 0
+                
+                for u in range(self.block_dim[0]):
+                    for v in range(self.block_dim[1]):
+                        if self.masked[u][v]:
+                            continue
+                        block = self.original_blocks[u][v]
+                        # make to interpolation
+                        block = cv2.resize(block, self.original_block_size, interpolation=cv2.INTER_AREA)
+                        ref_block =cv2.resize(self.ref_blocks[i][j], self.original_block_size, interpolation=cv2.INTER_AREA)
+                        # cv2.imwrite('output/ref_block.png', ref_block)
+                        for k in range(4):
+                            rotated_block = np.rot90(block, k)
+                            # cv2.imwrite('output/sample.png', rotated_block)
+                            
+                            # images, ensuring that the difference image is returned
+                            rgb_rotated_block = DataProcessor.convert_image_to_three_dim(rotated_block)
+                            rgb_ref_block = DataProcessor.convert_image_to_three_dim(ref_block)
+                            (r_score, r_diff) = compare_ssim(rgb_rotated_block[0], rgb_ref_block[0], full=True)
+                            (g_score, g_diff) = compare_ssim(rgb_rotated_block[1], rgb_ref_block[1], full=True)
+                            (b_score, b_diff) = compare_ssim(rgb_rotated_block[2], rgb_ref_block[2], full=True)
+                            score = (r_score + g_score + b_score) / 3
+                            all_actions.append([(i, j), (u, v, k)])
+                            values.append(score)
+        check_list = set()
+        check_list_2 = set()
+        indices = np.argsort(values)[::-1]
+        sorted_actions = [all_actions[i] for i in indices]
+        for action in sorted_actions:
+            x1, y1 = action[0]
+            x2, y2, k = action[1]
+            if (x1, y1) in check_list or (x2, y2) in check_list_2:
+                continue
+            check_list.add((x1, y1))
+            check_list_2.add((x2, y2))
+            self.inverse[x1][y1] = action[1]
+            self.dropped_blocks[x1][y1] = np.rot90(self.blocks[x2][y2], k)
             
+        self.masked = np.ones((self.block_dim[0], self.block_dim[1]), dtype=np.int8)
+        self.lost_block_labels = np.zeros((self.block_dim[0], self.block_dim[1]), dtype=np.int8)
+
     def copy(self):
         """
         Returns a copy of the state.
         """
         state = State()
+        state.file_name = self.file_name
         state.block_size = self.block_size
         state.block_shape = self.block_shape
         state.block_dim = self.block_dim
@@ -178,9 +233,26 @@ class State(GameInfo):
         state.block_shape = self.block_shape
         state.block_dim = self.block_dim
         state.image_size = self.image_size
-        state.inverse = self.inverse
         state.select_swap_ratio = self.select_swap_ratio
         state.max_n_selects = self.max_n_selects
+        state.inverse = deepcopy(self.inverse)
+        lost_positions = set()
+        for i in range(self.block_dim[0]):
+            for j in range(self.block_dim[1]):
+                lost_positions.add((i, j))
+        for i in range(self.block_dim[0]):
+            for j in range(self.block_dim[1]):
+                if state.inverse[i][j][2] != -1:
+                    lost_positions.remove((state.inverse[i][j][0], state.inverse[i][j][1]))
+        lost_positions = list(lost_positions)
+        idx = 0
+        for i in range(self.block_dim[0]):
+            for j in range(self.block_dim[1]):
+                if state.inverse[i][j][2] == -1:
+                    x, y = lost_positions[idx]
+                    state.inverse[i][j] = (x, y, 0)
+                    idx += 1
+        
         return state
     
     def get_std_err(self, block): 
@@ -212,7 +284,8 @@ class State(GameInfo):
                     cp_masked[(i + 1)][j] = self.masked[i][j]
                     cp_inverse[(i + 1)][j] = self.inverse[i][j]
                     cp_std_errs[(i + 1)][j] = self.std_errs[i][j]
-                    
+            for j in range(self.block_dim[1]):
+                cp_inverse[0][j] = (0, j, -1)
         if mode == 'right':
             for i in range(self.block_dim[0]):
                 for j in range(self.block_dim[1]-1):
@@ -220,7 +293,9 @@ class State(GameInfo):
                     cp_masked[i][j + 1] = self.masked[i][j]
                     cp_inverse[i][j + 1] = self.inverse[i][j]
                     cp_std_errs[i][j + 1] = self.std_errs[i][j]
-                    
+            for i in range(self.block_dim[0]):
+                cp_inverse[i][0] = (i, 0, -1)
+                
         if mode == 'up':
             for i in range(1, self.block_dim[0]):
                 for j in range(self.block_dim[1]):
@@ -228,7 +303,9 @@ class State(GameInfo):
                     cp_masked[(i - 1)][j] = self.masked[i][j]
                     cp_inverse[(i - 1)][j] = self.inverse[i][j]
                     cp_std_errs[(i - 1)][j] = self.std_errs[i][j]
-            
+            for j in range(self.block_dim[1]):
+                cp_inverse[-1][j] = (self.block_dim[0] - 1, j, -1)
+                
         if mode == 'left':
             print('left')
             for i in range(self.block_dim[0]):
@@ -237,7 +314,8 @@ class State(GameInfo):
                     cp_masked[i][j - 1] = self.masked[i][j]
                     cp_inverse[i][j - 1] = self.inverse[i][j]
                     cp_std_errs[i][j - 1] = self.std_errs[i][j]
-        
+            for i in range(self.block_dim[0]):
+                cp_inverse[i][-1] = (i, self.block_dim[1] - 1, -1)
         self.dropped_blocks = cp_dropped_blocks
         self.masked = cp_masked
         self.inverse = cp_inverse
@@ -329,7 +407,7 @@ class Environment():
         next_s.masked[x][y] = 0
         next_s.dropped_blocks[x][y] = np.zeros((state.block_shape[0], state.block_shape[1], 3), dtype=np.uint8)
         _x, _y = next_s.inverse[x][y][:2]
-        next_s.inverse[x][y] = (x, y, 0)
+        next_s.inverse[x][y] = (x, y, -1)
         next_s.lost_block_labels[_x][_y] = 1
         next_s.parent = state
         next_s.set_string_presentation()
