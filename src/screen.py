@@ -6,6 +6,8 @@ import numpy as np
 # from src.recover.environment import State
 import pygame
 
+from src.data_helper import DataProcessor
+
 class Button:
     def __init__(self,text,width,height,pos,elevation):
         #Core attributes 
@@ -105,6 +107,8 @@ class Screen(object):
                                     self.coord(3, self.height + 3), 0)
         self.rotate_button = Button('RT', self.SQUARE_SIZE, self.SQUARE_SIZE,
                                     self.coord(0, self.height + 4), 0)
+        self.save_button = Button('SA', self.SQUARE_SIZE, self.SQUARE_SIZE,
+                                    self.coord(1, self.height + 4), 0)
         self.buttons = [self.accept_button, 
                         self.reject_button,
                         self.jump_5_button,
@@ -113,6 +117,7 @@ class Screen(object):
                         self.back_1_button,
                         self.back_5_button,
                         self.rotate_button,
+                        self.save_button,
                         self.done_button]
         # grey background
         # self.screen.fill((100, 100, 100))
@@ -175,6 +180,11 @@ class Screen(object):
         else:
             return None
     
+    def save(self, state):
+        save_file_path = 'output/states/' + state.file_name + '.bin'
+        DataProcessor.save_item_to_binary_file(state.small_copy(), save_file_path)
+        print('Saved to ' + save_file_path)
+        
     def start(self, env, state, algo):
         n_jumps = 0
         chosen_position = None
@@ -182,8 +192,10 @@ class Screen(object):
         recommended_block_position = 0
         action = None
         start = time.time()
-        threshold = algo.threshold
+        probs = None
+        # threshold = algo.threshold
         while self.done_button.pressed == False:
+
             # pygame.event.get()
             chosen_position = self.get_mouse_clicked_position()
             if chosen_position != None:
@@ -219,7 +231,7 @@ class Screen(object):
                 #     waiting_mode = True
                     
             
-            if n_jumps > 0:
+            if n_jumps > 0 and probs is not None:
                 # try:
                 if probs[0] > 0.1:
                     waiting_mode = False
@@ -312,6 +324,11 @@ class Screen(object):
                 self.screen.blit(text, self.coord(1, self.height + 1))
                 continue
             
+            if self.save_button.pressed:
+                self.save(state)
+                self.save_button.pressed = False
+                pygame.event.clear()
+                pygame.time.delay(500)
             self.render(state)
         return state
             
@@ -323,6 +340,11 @@ class Screen(object):
         k_rotates = 0
         curpos = None
         while self.done_button.pressed == False:
+            if self.save_button.pressed:
+                self.save(state)
+                self.save_button.pressed = False
+                pygame.event.clear()
+                pygame.time.delay(500)
             # pygame.event.get()
             self.render(state, curpos)
             chosen_position = self.get_mouse_clicked_position()
@@ -391,4 +413,152 @@ class Screen(object):
                 k_rotates = 0
                 continue
                 
+        return state
+    
+    
+    def start_3(self, env, state, algo):
+        n_jumps = 0
+        chosen_position = None
+        waiting_mode = True
+        recommended_block_position = 0
+        action = None
+        start = time.time()
+        probs = None
+        # threshold = algo.threshold
+        while self.done_button.pressed == False:
+
+            # pygame.event.get()
+            chosen_position = self.get_mouse_clicked_position()
+            if chosen_position != None:
+                print(chosen_position)
+                if chosen_position[0] < state.block_dim[0] and \
+                    chosen_position[1] < state.block_dim[1]:
+                    x, y = chosen_position
+                    if state.masked[x][y] == 0:
+                        waiting_mode = False    
+                    else:
+                        state = env.remove(state, (x, y))
+                
+            if state.depth >= state.max_depth:
+                n_jumps = 0
+                self.accept_button.pressed = False
+                waiting_mode = True
+            
+            if not waiting_mode:
+                # try:
+                actions, probs = algo.get_next_action(state, position=chosen_position)
+                waiting_mode = False
+                chosen_position = None
+                recommended_block_position = 0
+                action = actions[0]
+                state = env.step(state, action)
+                print('Probability: {} / {}'.format(
+                    np.round(probs[recommended_block_position], 2),
+                    algo.threshold))
+                print('Step: {} / {}'.format(state.depth, state.max_depth))
+                print('Time: %.3f' % (time.time() - start))
+                # except Exception as e:
+                #     print(e)
+                #     waiting_mode = True
+                    
+            
+            if n_jumps > 0 and probs is not None:
+                # try:
+                if probs[0] > 0.1:
+                    waiting_mode = False
+                    n_jumps -= 1
+                    self.render(state)
+                    continue
+                else:
+                    n_jumps = 0
+                # except Exception as e:
+                #     print(e)
+            else:
+                text = self.warning_font.render('*', True, BLACK)
+                self.screen.blit(text, self.coord(1, self.height + 1))
+            
+            if self.reject_button.pressed:
+                # try:
+                recommended_block_position += 1
+                recommended_block_position %= len(actions)
+                self.reject_button.pressed = False
+                action = actions[recommended_block_position]
+                print('Probability: {} / {}'.format(
+                    np.round(probs[recommended_block_position], 2),
+                    algo.threshold))
+                print('Step: {} / {}'.format(state.depth, state.max_depth))
+                print('Time: %.3f' % (time.time() - start))
+                if state.parent is not None:
+                    state = state.parent
+                state = env.step(state, action)
+                pygame.event.clear()
+                pygame.time.delay(500)
+                continue
+                # except Exception as e:
+                #     print(e)
+            
+            if self.accept_button.pressed:
+                n_jumps -= 1
+                self.accept_button.pressed = False
+                waiting_mode = False
+                pygame.event.clear()
+                pygame.time.delay(500)
+                continue
+                
+            if self.back_1_button.pressed:
+                self.back_1_button.pressed = False
+                if state.parent is not None:
+                    state = state.parent
+                pygame.event.clear()
+                pygame.time.delay(500)
+                # algo.threshold *= 1.02
+                continue
+                
+            if self.back_5_button.pressed:
+                self.back_5_button.pressed = False
+                for _ in range(6):
+                    if state.parent is not None:
+                        state = state.parent
+                pygame.event.clear()
+                # algo.threshold *= 1.02
+                pygame.time.delay(500)
+                waiting_mode = False
+                continue
+                
+            if self.jump_5_button.pressed:
+                self.jump_5_button.pressed = False
+                n_jumps += 5
+                # algo.threshold *= 0.99
+                pygame.event.clear()
+                pygame.time.delay(500)
+                text = self.warning_font.render('*', True, YELLOW)
+                self.screen.blit(text, self.coord(1, self.height + 1))
+                continue
+            
+            if self.jump_10_button.pressed:
+                self.jump_10_button.pressed = False
+                n_jumps += 10
+                # algo.threshold *= 0.98
+                pygame.event.clear()
+                pygame.time.delay(500)
+                text = self.warning_font.render('*', True, YELLOW)
+                self.screen.blit(text, self.coord(1, self.height + 1))
+                continue
+                
+            if self.jump_20_button.pressed:
+                self.jump_20_button.pressed = False
+                n_jumps += 20
+                # algo.threshold *= 0.97
+                pygame.event.clear()
+                pygame.time.delay(500)
+                text = self.warning_font.render('*', True, YELLOW)
+                self.screen.blit(text, self.coord(1, self.height + 1))
+                continue
+            
+            if self.save_button.pressed:
+                self.save(state)
+                self.save_button.pressed = False
+                pygame.event.clear()
+                pygame.time.delay(500)
+            self.render(state)
         return state

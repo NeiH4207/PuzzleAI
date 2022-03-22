@@ -24,6 +24,8 @@ def parse_args():
     parser.add_argument('-a', '--algorithm', type=str, default='greedy')
     parser.add_argument('-v', '--verbose', action='store_true')
     parser.add_argument('--simple', action='store_true')
+    parser.add_argument('--ref', action='store_true')
+    parser.add_argument('--ref-dir', type=str, default=None)
     parser.add_argument('-t', '--threshold', type=float, default=1.0)
     parser.add_argument('-j', '--n_jumps', type=float, default=0)
     
@@ -35,6 +37,7 @@ def main():
     state = State(block_size=args.block_size)
     state.load_from_json(file_name=args.file_name + '.json')
     state.make()
+    state.file_name = args.file_name.split('.')[0]
     model = VGG('VGG7')
     model.load(0, 1000, args.model_name)
         
@@ -60,27 +63,26 @@ def main():
         screen = Screen(state)
         screen.render(state)
         state = screen.start_2(env, state)
+    elif args.ref:
+        # png image
+        ref_img = cv2.imread(args.ref_dir)
+        state.to_ref_mode(ref_img)
+        state.depth = state.max_depth
+        screen = Screen(state)
+        screen.render(state)
+        state = screen.start_3(env, state, algo)
     else:
         screen = Screen(state)
         screen.render(state)
         state = screen.start(env, state, algo)
         
-    # new_blocks = np.zeros(state.original_blocks.shape, dtype=np.uint8)
-    # for i in range(state.block_dim[0]):
-    #     for j in range(state.block_dim[1]):
-    #         x, y, angle = state.inverse[i][j]
-    #         new_blocks[i][j] = np.rot90(state.original_blocks[x][y], k=angle)
-    # recovered_image = DataProcessor.merge_blocks(new_blocks)
 
     end = time.time()
     
-    # recovered_image = cv2.resize(recovered_image, args.image_size_out)
-    # cv2.imwrite(args.output_path + args.file_name + '.png', recovered_image)
-    # print('Recovered image saved at: ' + args.output_path + args.file_name+ '.png')
     print('Time: {}'.format(end - start))
     DataProcessor.save_item_to_binary_file(
         state.small_copy(),
-        'output/states/' + args.file_name.split('.')[0] + '.bin') # _' + args.file_name
+        'output/states/' + state.file_name + '.bin') 
     
 if __name__ == "__main__":
     main()
