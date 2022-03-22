@@ -3,6 +3,7 @@ import os
 import sys
 import time
 import numpy as np
+os.environ['PYGAME_HIDE_SUPPORT_PROMPT'] = "hide"
 # from src.recover.environment import State
 import pygame
 
@@ -426,8 +427,6 @@ class Screen(object):
         probs = None
         # threshold = algo.threshold
         while self.done_button.pressed == False:
-
-            # pygame.event.get()
             chosen_position = self.get_mouse_clicked_position()
             if chosen_position != None:
                 print(chosen_position)
@@ -447,7 +446,7 @@ class Screen(object):
             if not waiting_mode:
                 # try:
                 actions, probs = algo.get_next_action(state, position=chosen_position)
-                waiting_mode = False
+                waiting_mode = True
                 chosen_position = None
                 recommended_block_position = 0
                 action = actions[0]
