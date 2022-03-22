@@ -1,11 +1,11 @@
 from copy import deepcopy
 import os
-import random
 import cv2
 import json
 from skimage.metrics import structural_similarity as compare_ssim
 import numpy as np
 from src.data_helper import DataProcessor
+from multiprocessing import Pool
 
 class GameInfo():
     
@@ -126,45 +126,53 @@ class State(GameInfo):
         self.dropped_blocks = deepcopy(self.blocks)
         self.masked = np.ones((self.block_dim[0], self.block_dim[1]), dtype=np.int8)
     
-    def to_ref_mode(self, ref_image):
+    def search(self, x, y, ref_block):
+        actions = []
+        values = []
+        ref_block =cv2.resize(ref_block, self.original_block_size, interpolation=cv2.INTER_AREA)
+        for u in range(self.block_dim[0]):
+            for v in range(self.block_dim[1]):
+                if self.masked[u][v]:
+                    continue
+                block = self.original_blocks[u][v]
+                # make to interpolation
+                block = cv2.resize(block, self.original_block_size, interpolation=cv2.INTER_AREA)
+                for k in range(4):
+                    rotated_block = np.rot90(block, k)
+                    # images, ensuring that the difference image is returned
+                    rgb_rotated_block = DataProcessor.convert_image_to_three_dim(rotated_block)
+                    rgb_ref_block = DataProcessor.convert_image_to_three_dim(ref_block)
+                    (r_score, r_diff) = compare_ssim(rgb_rotated_block[0], rgb_ref_block[0], full=True)
+                    (g_score, g_diff) = compare_ssim(rgb_rotated_block[1], rgb_ref_block[1], full=True)
+                    (b_score, b_diff) = compare_ssim(rgb_rotated_block[2], rgb_ref_block[2], full=True)
+                    score = (r_score + g_score + b_score) / 3
+                    actions.append([(x, y), (u, v, k)])
+                    values.append(score)
+        print('X: %d, Y: %d Done' % (x, y))
+        return actions, values / np.sum(values)
+    
+    def to_ref_mode(self, ref_image, n_jobs=8):
         self.ref_img = cv2.resize(ref_image, (self.original_block_size[0] * self.block_dim[1],
                                                 self.original_block_size[1] * self.block_dim[0]), interpolation=cv2.INTER_AREA)
         self.ref_blocks = DataProcessor.split_image_to_blocks(self.ref_img, block_dim=(self.block_dim[0], self.block_dim[1]))
         self.masked = np.zeros((self.block_dim[0], self.block_dim[1]), dtype=np.int8)
         
         all_actions = []
-        values = []
+        all_values = []
+        params = []
         for i in range(self.block_dim[0]):
             for j in range(self.block_dim[1]):
-                best_index = -1
-                best_score = -np.inf
-                total_val = 0
-                
-                for u in range(self.block_dim[0]):
-                    for v in range(self.block_dim[1]):
-                        if self.masked[u][v]:
-                            continue
-                        block = self.original_blocks[u][v]
-                        # make to interpolation
-                        block = cv2.resize(block, self.original_block_size, interpolation=cv2.INTER_AREA)
-                        ref_block =cv2.resize(self.ref_blocks[i][j], self.original_block_size, interpolation=cv2.INTER_AREA)
-                        # cv2.imwrite('output/ref_block.png', ref_block)
-                        for k in range(4):
-                            rotated_block = np.rot90(block, k)
-                            # cv2.imwrite('output/sample.png', rotated_block)
-                            
-                            # images, ensuring that the difference image is returned
-                            rgb_rotated_block = DataProcessor.convert_image_to_three_dim(rotated_block)
-                            rgb_ref_block = DataProcessor.convert_image_to_three_dim(ref_block)
-                            (r_score, r_diff) = compare_ssim(rgb_rotated_block[0], rgb_ref_block[0], full=True)
-                            (g_score, g_diff) = compare_ssim(rgb_rotated_block[1], rgb_ref_block[1], full=True)
-                            (b_score, b_diff) = compare_ssim(rgb_rotated_block[2], rgb_ref_block[2], full=True)
-                            score = (r_score + g_score + b_score) / 3
-                            all_actions.append([(i, j), (u, v, k)])
-                            values.append(score)
+                ref_block = self.ref_blocks[i][j]
+                params.append((i, j, ref_block))
+        with Pool(n_jobs) as p:
+            results = p.starmap(self.search, params)
+            for actions, values in results:
+                all_actions.extend(actions)
+                all_values.extend(values)
+            
         check_list = set()
         check_list_2 = set()
-        indices = np.argsort(values)[::-1]
+        indices = np.argsort(all_values)[::-1]
         sorted_actions = [all_actions[i] for i in indices]
         for action in sorted_actions:
             x1, y1 = action[0]
