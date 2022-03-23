@@ -19,8 +19,9 @@ class lecoDFS():
         self.depth = {}
         self.parent = {}
         self.leafs = {}
+        self.old_v = -np.inf
       
-    def get_available_actions(self, state, repeat=False):
+    def get_available_actions(self, state, repexat=False):
         actions = []
         should_be_select = False
         if state.curr_position != None:
@@ -103,7 +104,6 @@ class lecoDFS():
                         
     def get_action(self, state):
         action, v = self.search(state, self._depth)
-        # print(action, v)
         return action
         
          

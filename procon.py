@@ -1,4 +1,7 @@
 from time import sleep
+import time
+
+import numpy as np
 from src.screen import Screen
 from src.data_helper import DataProcessor
 from src.recover.greedy import Greedy
@@ -61,6 +64,7 @@ def main():
     start = time.time()
     """ initialize the model """
     game_state.original_distance = env.get_mahattan_distance(game_state)
+    game_state.distance = game_state.original_distance
     solution = Solution(shape=game_state.shape)
     solution.save_angles(game_state.inverse)
     standard.n_fast_moves = min(max(game_state.max_select - game_state.n_selects - 2, -1), 
@@ -97,11 +101,12 @@ def main():
         solution.store_action(action)
         if args.verbose and game_state.depth % args.skip == 0:
             screen.render(game_state, show_button=False)
-            # game_state.save_image()
             distance = env.get_mahattan_distance(game_state)
+            # game_state.save_image()
             haminton_distance = env.get_haminton_distance(game_state)
-            print("Num swaps: {}, Num selects: {}, Distance: {}, Haminton: {}".format(
-                game_state.n_swaps, game_state.n_selects, distance, haminton_distance
+            print("Nsw: {}, Nse: {}, Dist: {}, Hamis: {}, Exp {}".format(
+                game_state.n_swaps, game_state.n_selects, distance, haminton_distance,
+                np.round(game_state.exploration_rate, 2)
             ))
             print("Time: {}".format(time.time() - start))
             sleep(args.sleep)

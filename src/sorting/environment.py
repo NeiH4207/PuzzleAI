@@ -124,6 +124,9 @@ class State:
             self.original_distance = 0
             self.parent_states = set()
             self.n_trues = 0
+            self.exploration_rate = 1.0
+            self.distance = 0
+            self.reward = - np.inf
             self.make()
         
     def make(self):
@@ -145,7 +148,7 @@ class State:
                 self.blocks[i][j] = cv2.resize(self.original_blocks[i][j],
                                             (64,64), interpolation=cv2.INTER_AREA)
         self.set_string_presentation()
-     
+        
     def copy(self):
         """
         Returns a copy of the state.
@@ -171,6 +174,9 @@ class State:
         state.original_distance = self.original_distance
         state.parent_states = deepcopy(self.parent_states)
         state.n_trues = self.n_trues
+        state.exploration_rate = self.exploration_rate
+        state.distance = self.distance
+        state.reward = self.reward
         return state
        
     def string_presentation(self, items):
@@ -214,6 +220,8 @@ class Environment():
         self.reset()
         self.next_step = {}
         self.counter = {}
+        self.eta = 0.95
+        self.gamma = 1 / self.eta * 1.05
 
     def reset(self):
         return
@@ -234,12 +242,11 @@ class Environment():
                         min(abs(true_pos[1] - y2), state.shape[1] - abs(true_pos[1] - y2))
             cost_4 = min(abs(true_pos[0] - x1), state.shape[0] - abs(true_pos[0] - x1)) + \
                         min(abs(true_pos[1] - y1), state.shape[1] - abs(true_pos[1] - y1)) 
-                         
-            mahattan_distance = self.get_mahattan_distance(state)
-            reward = (cost_1 - cost_2) + 3.99 \
-                * (cost_3 - cost_4) * np.sqrt(1 - (state.original_distance - mahattan_distance) / \
-                state.original_distance) \
-                - self.r2
+            # print(state.exploration_rate)
+            # mahattan_distance = self.get_mahattan_distance(state)
+            reward = (1 - state.exploration_rate) * (cost_1 - cost_2) + \
+                state.exploration_rate  * (cost_3 - cost_4) / ((1000000 + state.targets[x2][y2]) / 1000000)\
+                    - self.r2
         else:
             x, y = action[1]
             true_pos = (state.targets[x][y] // state.shape[1],\
@@ -247,7 +254,36 @@ class Environment():
             cost = min(abs(true_pos[0] - x), state.shape[0] - abs(true_pos[0] - x)) + \
                         min(abs(true_pos[1] - y), state.shape[1] - abs(true_pos[1] - y))
                 
-            reward = - self.r1 + cost * 0.0001
+            reward = - self.r1 + cost * 0.00001
+        return reward
+    
+    def get_reward(self, state, action):
+        reward = 0
+        if action[0] == 'swap':
+            x1, y1, x2, y2 = action[1]
+            true_pos = (state.targets[x1][y1] // state.shape[1],\
+                          state.targets[x1][y1] % state.shape[1])
+            cost_1 = min(abs(true_pos[0] - x1), state.shape[0] - abs(true_pos[0] - x1)) + \
+                        min(abs(true_pos[1] - y1), state.shape[1] - abs(true_pos[1] - y1))
+            cost_2 = min(abs(true_pos[0] - x2), state.shape[0] - abs(true_pos[0] - x2)) + \
+                        min(abs(true_pos[1] - y2), state.shape[1] - abs(true_pos[1] - y2))
+            true_pos = (state.targets[x2][y2] // state.shape[1],\
+                        state.targets[x2][y2] % state.shape[1])
+            cost_3 = min(abs(true_pos[0] - x2), state.shape[0] - abs(true_pos[0] - x2)) + \
+                        min(abs(true_pos[1] - y2), state.shape[1] - abs(true_pos[1] - y2))
+            cost_4 = min(abs(true_pos[0] - x1), state.shape[0] - abs(true_pos[0] - x1)) + \
+                        min(abs(true_pos[1] - y1), state.shape[1] - abs(true_pos[1] - y1)) 
+                         
+            # mahattan_distance = self.get_mahattan_distance(state)
+            reward = (cost_1 - cost_2) + (cost_3 - cost_4) - self.r2
+        else:
+            x, y = action[1]
+            true_pos = (state.targets[x][y] // state.shape[1],\
+                            state.targets[x][y] % state.shape[1])
+            cost = min(abs(true_pos[0] - x), state.shape[0] - abs(true_pos[0] - x)) + \
+                        min(abs(true_pos[1] - y), state.shape[1] - abs(true_pos[1] - y))
+                
+            reward = - self.r1
         return reward
     
     def get_G_reward(self, state):
@@ -355,5 +391,11 @@ class Environment():
         next_s.set_string_presentation()
         next_s.parent_states.add(state.get_string_presentation())
         next_s.last_action = action
+        reward = self.get_reward(state, action)
+        if reward > state.reward:
+            next_s.exploration_rate = min(0.95, next_s.exploration_rate * self.gamma)
+        elif reward < state.reward:
+            next_s.exploration_rate = max(0.05, next_s.exploration_rate * self.eta)
+        next_s.reward = reward
         return next_s
     

@@ -12,7 +12,6 @@ from models.dla import DLA
 from models.densenet import densenet_cifar
 import cv2
 from utils import *
-seed(10)
 
 def get_dataset(file_dir, file_name, iter, saved=False):
     if configs['preprocess']:

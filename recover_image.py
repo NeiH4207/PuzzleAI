@@ -1,4 +1,5 @@
 ''' python3 recover_image.py -f natural_1 -v -m '''
+import time
 import cv2
 import numpy as np
 from models.VGG import VGG
@@ -10,7 +11,6 @@ from src.recover.environment import Environment, State
 from configs import *
 import argparse
 from src.screen import Screen
-seed(0)
 
 def parse_args():
     parser = argparse.ArgumentParser()

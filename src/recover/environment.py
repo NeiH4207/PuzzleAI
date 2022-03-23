@@ -40,7 +40,7 @@ class GameInfo():
         with open(file_path, 'w') as f:
             json.dump(data, f)
         self.file_path = file_path
-        print('Game info saved to binary file %s' % file_path)
+        print('Game info saved to json file %s' % file_path)
     
     def load_from_json(self, file_path='./input/game_info', file_name='game_info.json'):
         file_path = os.path.join(file_path, file_name)
