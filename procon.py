@@ -32,7 +32,7 @@ def parse_args():
     parser.add_argument("-c", "--max_select", type=int, default=None)
     parser.add_argument("-d", "--depth", type=int, default=3)
     parser.add_argument("-b", "--breadth", type=int, default=4)
-    
+    parser.add_argument("-e", "--eta", type=float, default=0.99)
     args = parser.parse_args()
     return args
 
@@ -45,16 +45,17 @@ def main():
         game_state.max_select = args.max_select
     print('Max number of selects:', game_state.max_select)
     if args.verbose:
-        game_state.save_image()
+        game_state.save_image(filename='temp.png')
     if state.select_swap_ratio:
         env = GameEnvironment(
-            r1=state.select_swap_ratio[0], r2=state.select_swap_ratio[1]
+            r1=state.select_swap_ratio[0], r2=state.select_swap_ratio[1],
+            eta=args.eta
         )
     else:
         env = GameEnvironment(
-            r1=int(args.rate.split("/")[0]), r2=int(args.rate.split("/")[1])
+            r1=int(args.rate.split("/")[0]), r2=int(args.rate.split("/")[1]),
+            eta=args.eta
         )
-
     mcts = GameMCTS(env, n_sim=20, c_puct=100, verbose=False)
     astar = Astar(env, verbose=False)
     stree = TreeSearch(env, args.depth, args.breadth, verbose=False)
@@ -100,9 +101,9 @@ def main():
         game_state = env.step(game_state, action)
         solution.store_action(action)
         if args.verbose and game_state.depth % args.skip == 0:
-            screen.render(game_state, show_button=False)
+            screen.render(game_state, filename='temp.png', show_button=False)
             distance = env.get_mahattan_distance(game_state)
-            # game_state.save_image()
+            game_state.save_image(filename='temp.png')
             haminton_distance = env.get_haminton_distance(game_state)
             print("Nsw: {}, Nse: {}, Dist: {}, Hamis: {}, Exp {}".format(
                 game_state.n_swaps, game_state.n_selects, distance, haminton_distance,
@@ -113,7 +114,7 @@ def main():
             
     game_state.show()
     if args.verbose:
-        game_state.save_image()
+        game_state.save_image(filename='temp.png')
     solution.save_to_json('output/solutions', args.item_name + '.json')
     solution.save_text('output/solutions', args.item_name + '.txt')
     print(

@@ -3,6 +3,8 @@ import os
 import sys
 import time
 import numpy as np
+
+from src.recover.environment import State
 os.environ['PYGAME_HIDE_SUPPORT_PROMPT'] = "hide"
 # from src.recover.environment import State
 import pygame
@@ -139,9 +141,9 @@ class Screen(object):
         for b in self.buttons:
             b.draw(self.screen)
             
-    def render(self, state, curpos=None, show_button = True):
-        state.save_image()
-        image = pygame.image.load('output/sample.png')
+    def render(self, state: State, curpos=None, filename='sample.png', show_button = True):
+        state.save_image(filename=filename)
+        image = pygame.image.load('output/' + filename)
         image = pygame.transform.scale(image, self.coord(self.width, self.height))
         self.screen.blit(image, self.coord(1, 1))
         self.buttons_draw()
@@ -330,6 +332,13 @@ class Screen(object):
                 self.save_button.pressed = False
                 pygame.event.clear()
                 pygame.time.delay(500)
+                
+            if self.rotate_button.pressed:
+                self.rotate_button.pressed = False
+                state = env.rot90(state)
+                pygame.time.delay(500)
+                pygame.event.clear()
+                
             self.render(state)
         return state
             
@@ -413,6 +422,7 @@ class Screen(object):
                 curpos = None
                 k_rotates = 0
                 continue
+            
                 
         return state
     
@@ -559,5 +569,13 @@ class Screen(object):
                 self.save_button.pressed = False
                 pygame.event.clear()
                 pygame.time.delay(500)
+                
+                
+            if self.rotate_button.pressed:
+                self.rotate_button.pressed = False
+                state = env.rot90(state)
+                pygame.time.delay(500)
+                pygame.event.clear()
+                
             self.render(state)
         return state

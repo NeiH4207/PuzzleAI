@@ -18,7 +18,7 @@ def parse_args():
     parser.add_argument('--model-path', type=str, default='./trainned_models/')
     parser.add_argument('--model-name', type=str, default='model')
     parser.add_argument('--output-path', type=str, default='./output/recovered_images/')
-    parser.add_argument('-f', '--file-name', type=str, default='matrix_4x4_test_2')
+    parser.add_argument('-f', '--file-name', type=str, default='monalisa4x4')
     parser.add_argument('--image-size-out', type=int, default=(512, 512))   
     parser.add_argument('-s', '--block-size', type=int, default=(32, 32))
     parser.add_argument('-a', '--algorithm', type=str, default='greedy')

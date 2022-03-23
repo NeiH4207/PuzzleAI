@@ -106,7 +106,6 @@ class State(GameInfo):
         self.image_size = (self.block_dim[0] * self.block_size[0],
                             self.block_dim[1] * self.block_size[1])
         self.dropped_blocks = self.blocks
-        self.save_image()
         self.dropped_blocks, self.lost_block_labels, self.masked = DataProcessor.drop_all_blocks(self.blocks)
         self.set_string_presentation()
         self.num_blocks = len(self.blocks)
@@ -120,6 +119,7 @@ class State(GameInfo):
         for i in range(self.block_dim[0]):
             for j in range(self.block_dim[1]):
                 self.inverse[i][j] = (i, j, -1)
+        self.inverse[0][0] = (0, 0, 0)
         self.mode = 'rgb'
     
     def to_simple_mode(self):
@@ -244,6 +244,7 @@ class State(GameInfo):
         state.select_swap_ratio = self.select_swap_ratio
         state.max_n_selects = self.max_n_selects
         state.inverse = deepcopy(self.inverse)
+        state.masked = deepcopy(self.masked)
         lost_positions = set()
         for i in range(self.block_dim[0]):
             for j in range(self.block_dim[1]):
@@ -284,6 +285,9 @@ class State(GameInfo):
         cp_masked = np.zeros((self.block_dim[0], self.block_dim[1]), dtype=np.int32)
         # cp_lost_block_labels = np.zeros((self.block_dim[0], self.block_dim[1]), dtype=np.int32)
         cp_inverse = np.zeros((self.block_dim[0], self.block_dim[1], 3), dtype=np.int8)
+        for i in range(self.block_dim[0]):
+            for j in range(self.block_dim[1]):
+                cp_inverse[i][j] = (i, j, -1)
         cp_std_errs = np.zeros(self.block_dim, dtype=np.float32)
         if mode == 'down':
             for i in range(self.block_dim[0]-1):
@@ -292,8 +296,7 @@ class State(GameInfo):
                     cp_masked[(i + 1)][j] = self.masked[i][j]
                     cp_inverse[(i + 1)][j] = self.inverse[i][j]
                     cp_std_errs[(i + 1)][j] = self.std_errs[i][j]
-            for j in range(self.block_dim[1]):
-                cp_inverse[0][j] = (0, j, -1)
+                
         if mode == 'right':
             for i in range(self.block_dim[0]):
                 for j in range(self.block_dim[1]-1):
@@ -301,8 +304,6 @@ class State(GameInfo):
                     cp_masked[i][j + 1] = self.masked[i][j]
                     cp_inverse[i][j + 1] = self.inverse[i][j]
                     cp_std_errs[i][j + 1] = self.std_errs[i][j]
-            for i in range(self.block_dim[0]):
-                cp_inverse[i][0] = (i, 0, -1)
                 
         if mode == 'up':
             for i in range(1, self.block_dim[0]):
@@ -311,8 +312,6 @@ class State(GameInfo):
                     cp_masked[(i - 1)][j] = self.masked[i][j]
                     cp_inverse[(i - 1)][j] = self.inverse[i][j]
                     cp_std_errs[(i - 1)][j] = self.std_errs[i][j]
-            for j in range(self.block_dim[1]):
-                cp_inverse[-1][j] = (self.block_dim[0] - 1, j, -1)
                 
         if mode == 'left':
             print('left')
@@ -322,8 +321,7 @@ class State(GameInfo):
                     cp_masked[i][j - 1] = self.masked[i][j]
                     cp_inverse[i][j - 1] = self.inverse[i][j]
                     cp_std_errs[i][j - 1] = self.std_errs[i][j]
-            for i in range(self.block_dim[0]):
-                cp_inverse[i][-1] = (i, self.block_dim[1] - 1, -1)
+                    
         self.dropped_blocks = cp_dropped_blocks
         self.masked = cp_masked
         self.inverse = cp_inverse
@@ -439,6 +437,19 @@ class Environment():
         
         return next_s
         
+    def rot90(self, state):
+        next_s = state.copy()
+        next_s.masked = np.rot90(next_s.masked, k=1)
+        next_s.dropped_blocks = np.rot90(next_s.dropped_blocks, k=1)
+        next_s.inverse = np.rot90(next_s.inverse, k=1)
+        for i in range(next_s.block_dim[0]):
+            for j in range(next_s.block_dim[1]):
+                if next_s.masked[i][j] == 1:
+                    next_s.dropped_blocks[i][j] = np.rot90(next_s.dropped_blocks[i][j], k=1)
+                    next_s.inverse[i][j] = (next_s.inverse[i][j][0], next_s.inverse[i][j][1], (next_s.inverse[i][j][2]+1)%4)
+        next_s.parent = state
+        next_s.set_string_presentation()
+        return next_s
     
     def get_next_block_ids(self, state, current_block_id):
         """

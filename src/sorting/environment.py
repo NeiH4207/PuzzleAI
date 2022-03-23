@@ -212,7 +212,7 @@ class Environment():
     """
     Class for the environment.
     """
-    def __init__(self, r1, r2, name='recover_image'):
+    def __init__(self, r1, r2, eta, name='recover_image'):
         self.name = name
         self.state = None
         self.r1 = r1 / (r1 + r2)
@@ -220,8 +220,8 @@ class Environment():
         self.reset()
         self.next_step = {}
         self.counter = {}
-        self.eta = 0.95
-        self.gamma = 1 / self.eta * 1.05
+        self.eta = eta
+        self.gamma = 1 / self.eta * 1.1
 
     def reset(self):
         return
