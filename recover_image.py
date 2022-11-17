@@ -27,7 +27,7 @@ def parse_args():
     parser.add_argument('--ref', action='store_true')
     parser.add_argument('--ref-dir', type=str, default=None)
     parser.add_argument('-t', '--threshold', type=float, default=1.0)
-    parser.add_argument('-j', '--n_jumps', type=float, default=0)
+    parser.add_argument('-j', '--n_jumps', type=float, default=1000)
     
     args = parser.parse_args()
     return args
@@ -46,6 +46,7 @@ def main():
     if args.algorithm == 'greedy':
         algo = Greedy(env, model, verbose=args.verbose, 
                     n_bests=4, threshold=args.threshold)
+        
     elif args.algorithm == 'mcts':
         algo = MCTS(env, model, n_sim=3, 
                 c_puct=1, threshold=args.threshold,
@@ -58,23 +59,9 @@ def main():
     
     start = time.time()
     
-    if args.simple:
-        state.to_simple_mode()
-        screen = Screen(state)
-        screen.render(state)
-        state = screen.start_2(env, state)
-    elif args.ref:
-        # png image
-        ref_img = cv2.imread(args.ref_dir)
-        state.to_ref_mode(ref_img)
-        state.depth = state.max_depth
-        screen = Screen(state)
-        screen.render(state)
-        state = screen.start_3(env, state, algo)
-    else:
-        screen = Screen(state)
-        screen.render(state)
-        state = screen.start(env, state, algo)
+    screen = Screen(state)
+    screen.render(state)
+    state = screen.start(env, state, algo)
         
 
     end = time.time()
