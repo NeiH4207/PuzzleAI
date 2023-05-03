@@ -3,11 +3,11 @@ Documents: https://drive.google.com/file/d/1O_pAM29H1FgaSKmwSrVF2Wna9Q4tEtRA/vie
 
 Input Image:
 
-![input-image](docs/tmps/natural_16.jpg)
+![input-image](docs/tmps/in_natural_16.png)
 
 Recovery Image:
 
-![recovery-image](docs/tmps/natural_16.png)
+![recovery-image](docs/tmps/out_natural_16.png)
 
 ## Install Python Libraries
 ```
