@@ -1,5 +1,13 @@
 # Procon 2022
 
+Input Image:
+
+![input-image](docs/tmps/natural_16.png)
+
+Recovery Image:
+
+![recovery-image](docs/tmps/natural_16.png)
+
 ## Install Python Libraries
 ```
 pip install -r requirements.txt
