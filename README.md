@@ -3,7 +3,7 @@ Documents: https://drive.google.com/file/d/1O_pAM29H1FgaSKmwSrVF2Wna9Q4tEtRA/vie
 
 Input Image:
 
-![input-image](docs/tmps/natural_16.png)
+![input-image](docs/tmps/natural_16.jpg)
 
 Recovery Image:
 
